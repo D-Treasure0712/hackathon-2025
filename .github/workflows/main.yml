@@ -1,0 +1,16 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize]
+
+jobs:
+  # このジョブ名を設定する
+  code-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: run code check
+        run: |
+          echo 'format, lint, UT and more'
