@@ -1,5 +1,9 @@
 name: Auto Link Issue from Branch
-on: [pull_request]
+on: 
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  issues: write
 jobs:
   link-issue:
     runs-on: ubuntu-latest
@@ -19,5 +23,5 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `関連Issue: #${{ steps.extract.outputs.issue_number }}`
+            body: `## 自動リンク\n関連Issue: #${{ steps.extract.outputs.issue_number }}`
           })
