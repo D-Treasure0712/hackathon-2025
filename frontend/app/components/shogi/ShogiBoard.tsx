@@ -11,7 +11,7 @@
 import React from 'react';
 import { BoardState } from './types';
 import { ShogiPiece } from './ShogiPiece';
-import { BOARD_ROWS, BOARD_COLS } from './constants';
+// import { BOARD_ROWS, BOARD_COLS } from './constants';
 
 // =====================================
 // Props定義
@@ -38,10 +38,10 @@ export interface ShogiBoardProps {
  */
 export const ShogiBoard: React.FC<ShogiBoardProps> = ({
   boardState,
-  className = '',
+  // className = '',
 }) => {
   return (
-    <div className={`flex flex-col items-center ${className}`}>
+    <div className={`flex flex-col items-center `}>
       {/* 
         盤面コンテナ
         aspect-squareで正方形を維持
