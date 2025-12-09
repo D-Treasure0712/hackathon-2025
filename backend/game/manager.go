@@ -23,6 +23,7 @@ type Game struct {
 	ID       string
 	Moves    []string // USI形式の手履歴
 	Engine   *engine.USIEngine
+	Board    *ShogiBoard // gshogiによる盤面管理
 	IsOver   bool
 	Result   GameResult
 	Reason   string // 終了理由: "resign", "checkmate", "rep_draw", "win"
@@ -75,6 +76,7 @@ func (gm *GameManager) NewGame(gameID string) (*Game, error) {
 		ID:     gameID,
 		Moves:  []string{},
 		Engine: eng,
+		Board:  NewShogiBoard(),
 		IsOver: false,
 		Result: ResultNone,
 		BTime:  60000, // デフォルト60秒
@@ -120,14 +122,17 @@ func (g *Game) PlayMove(playerMove string) (aiMove string, err error) {
 		return "", fmt.Errorf("対局は既に終了しています")
 	}
 
-	// プレイヤーの手を追加
+	// プレイヤーの手を履歴に追加
+	// 注: gshogiはパニックを起こす可能性があるため、USIエンジンに検証を任せる
 	g.Moves = append(g.Moves, playerMove)
 
-	// AIの手を取得
+	// AIの手を取得（AIが不正な手を検知した場合はエラーを返す）
 	position := g.GetPosition()
 	aiMove, err = g.Engine.GetBestMove(position, g.BTime, g.WTime)
 	if err != nil {
-		return "", fmt.Errorf("AIの手取得に失敗: %w", err)
+		// プレイヤーの手が不正だった場合、履歴から削除
+		g.Moves = g.Moves[:len(g.Moves)-1]
+		return "", fmt.Errorf("不正な手です: %s", playerMove)
 	}
 
 	// 特殊応答をチェック
@@ -164,3 +169,4 @@ func (g *Game) Close() {
 		g.Engine = nil
 	}
 }
+

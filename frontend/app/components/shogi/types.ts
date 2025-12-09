@@ -15,7 +15,7 @@ export type Player = 'sente' | 'gote';
 // =====================================
 
 /** 基本駒（成っていない状態） */
-export type BasePieceType = 
+export type BasePieceType =
   | 'king'    // 玉（王）
   | 'rook'    // 飛車
   | 'bishop'  // 角行
@@ -26,7 +26,7 @@ export type BasePieceType =
   | 'pawn';   // 歩兵
 
 /** 成り駒 */
-export type PromotedPieceType = 
+export type PromotedPieceType =
   | 'dragon'          // 龍（成飛）
   | 'horse'           // 馬（成角）
   | 'promotedSilver'  // 成銀
@@ -79,3 +79,26 @@ export interface Position {
   /** 列（0-8、左から右） */
   col: number;
 }
+
+// =====================================
+// 持ち駒の定義
+// =====================================
+
+/** 持ち駒として使える駒の種類（成り駒は持ち駒にできない） */
+export type HandPieceType = Exclude<BasePieceType, 'king'>;
+
+/** 持ち駒の状態（駒の種類ごとの個数） */
+export type CapturedPieces = {
+  [key in HandPieceType]: number;
+};
+
+/** 初期の持ち駒（全て0） */
+export const EMPTY_CAPTURED_PIECES: CapturedPieces = {
+  rook: 0,
+  bishop: 0,
+  gold: 0,
+  silver: 0,
+  knight: 0,
+  lance: 0,
+  pawn: 0,
+};

@@ -12,3 +12,4 @@ export * from './constants';
 // コンポーネント
 export { ShogiPiece } from './ShogiPiece';
 export { ShogiBoard } from './ShogiBoard';
+export { PieceStand } from './PieceStand';
