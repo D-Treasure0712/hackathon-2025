@@ -20,8 +20,8 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({ currentPlayer, win
   return (
     <div className={`
       text-lg md:text-xl font-bold my-4 px-8 py-2 rounded-full border-2 transition-colors
-      ${currentPlayer === 0 
-        ? 'bg-blue-50 border-blue-400 text-blue-900' 
+      ${currentPlayer === 0
+        ? 'bg-blue-50 border-blue-400 text-blue-900'
         : 'bg-green-50 border-green-400 text-green-900'
       }
     `}>
