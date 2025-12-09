@@ -5,13 +5,15 @@
  * 機能:
  * - 9x9のグリッド表示
  * - 各マスへの駒配置
+ * - 駒の選択・移動
  * - レスポンシブ対応
  */
 
+'use client';
+
 import React from 'react';
-import { BoardState } from './types';
+import { BoardState, Position } from './types';
 import { ShogiPiece } from './ShogiPiece';
-// import { BOARD_ROWS, BOARD_COLS } from './constants';
 
 // =====================================
 // Props定義
@@ -20,6 +22,14 @@ import { ShogiPiece } from './ShogiPiece';
 export interface ShogiBoardProps {
   /** 盤面の状態 */
   boardState: BoardState;
+  /** 選択中のマス */
+  selectedPosition?: Position | null;
+  /** 最後に打った手（ハイライト用） */
+  lastMove?: { from: Position | null; to: Position } | null;
+  /** マスクリック時のコールバック */
+  onSquareClick?: (row: number, col: number) => void;
+  /** インタラクティブかどうか */
+  interactive?: boolean;
   /** 追加のCSSクラス（オプション） */
   className?: string;
 }
@@ -38,8 +48,17 @@ export interface ShogiBoardProps {
  */
 export const ShogiBoard: React.FC<ShogiBoardProps> = ({
   boardState,
-  // className = '',
+  selectedPosition = null,
+  lastMove = null,
+  onSquareClick,
+  interactive = false,
 }) => {
+  const handleSquareClick = (row: number, col: number) => {
+    if (interactive && onSquareClick) {
+      onSquareClick(row, col);
+    }
+  };
+
   return (
     <div className={`flex flex-col items-center `}>
       {/* 
@@ -80,27 +99,38 @@ export const ShogiBoard: React.FC<ShogiBoardProps> = ({
         >
           {/* 各マスをレンダリング */}
           {boardState.map((row, rowIndex) =>
-            row.map((piece, colIndex) => (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                className="
-                  bg-amber-100 dark:bg-amber-200
-                  flex items-center justify-center
-                  aspect-square
-                "
-                data-row={rowIndex}
-                data-col={colIndex}
-                data-position={`${9 - colIndex}${['一', '二', '三', '四', '五', '六', '七', '八', '九'][rowIndex]}`}
-              >
-                {/* 駒がある場合のみShogiPieceを表示 */}
-                {piece && (
-                  <ShogiPiece
-                    type={piece.type}
-                    owner={piece.owner}
-                  />
-                )}
-              </div>
-            ))
+            row.map((piece, colIndex) => {
+              const isSelected = selectedPosition?.row === rowIndex && selectedPosition?.col === colIndex;
+              const isLastMoveFrom = lastMove?.from?.row === rowIndex && lastMove?.from?.col === colIndex;
+              const isLastMoveTo = lastMove?.to?.row === rowIndex && lastMove?.to?.col === colIndex;
+              const isLastMove = isLastMoveFrom || isLastMoveTo;
+
+              return (
+                <div
+                  key={`${rowIndex}-${colIndex}`}
+                  className={`
+                    flex items-center justify-center
+                    aspect-square
+                    ${isSelected ? 'bg-green-300 dark:bg-green-400 ring-2 ring-green-500' :
+                      isLastMove ? 'bg-yellow-200 dark:bg-yellow-300' :
+                        'bg-amber-100 dark:bg-amber-200'}
+                    ${interactive ? 'cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-300 transition-colors' : ''}
+                  `}
+                  data-row={rowIndex}
+                  data-col={colIndex}
+                  data-position={`${9 - colIndex}${['一', '二', '三', '四', '五', '六', '七', '八', '九'][rowIndex]}`}
+                  onClick={() => handleSquareClick(rowIndex, colIndex)}
+                >
+                  {/* 駒がある場合のみShogiPieceを表示 */}
+                  {piece && (
+                    <ShogiPiece
+                      type={piece.type}
+                      owner={piece.owner}
+                    />
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </div>

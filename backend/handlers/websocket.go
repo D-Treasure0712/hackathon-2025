@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"my-backend-app/game"
 
@@ -27,12 +28,13 @@ type ClientMessage struct {
 
 // ServerMessage はサーバーからのメッセージ形式
 type ServerMessage struct {
-	Type    string `json:"type"`
-	Move    string `json:"move,omitempty"`
-	Result  string `json:"result,omitempty"`
-	Reason  string `json:"reason,omitempty"`
-	Error   string `json:"error,omitempty"`
-	GameID  string `json:"gameId,omitempty"`
+	Type        string `json:"type"`
+	Move        string `json:"move,omitempty"`
+	Result      string `json:"result,omitempty"`
+	Reason      string `json:"reason,omitempty"`
+	Error       string `json:"error,omitempty"`
+	ErrorType   string `json:"errorType,omitempty"` // "illegal_move", "engine_error"等
+	GameID      string `json:"gameId,omitempty"`
 }
 
 // WebSocketHandler はWebSocket接続を処理する
@@ -113,19 +115,34 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 // handleMove はプレイヤーの手を処理する
 func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move string) {
 	if move == "" {
-		h.sendError(conn, "手が指定されていません")
+		h.sendErrorWithType(conn, "手が指定されていません", "invalid_request")
 		return
 	}
 
 	aiMove, err := g.PlayMove(move)
 	if err != nil {
 		log.Printf("PlayMoveエラー: %v", err)
-		h.sendError(conn, err.Error())
+		// エラータイプを判定
+		errorType := "engine_error"
+		if strings.Contains(err.Error(), "不正な手") {
+			errorType = "illegal_move"
+		}
+		h.sendErrorWithType(conn, err.Error(), errorType)
 		return
 	}
 
-	// ゲーム終了チェック
-	if g.IsOver {
+	// プレイヤーの手で詰んだ場合（aiMoveが"checkmate"）
+	if aiMove == "checkmate" {
+		h.sendMessage(conn, ServerMessage{
+			Type:   "game_over",
+			Result: string(g.Result),
+			Reason: g.Reason,
+		})
+		return
+	}
+
+	// AIが投了/千日手/入玉宣言の場合
+	if aiMove == "resign" || aiMove == "rep_draw" || aiMove == "win" {
 		h.sendMessage(conn, ServerMessage{
 			Type:   "game_over",
 			Result: string(g.Result),
@@ -139,6 +156,15 @@ func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move s
 		Type: "ai_move",
 		Move: aiMove,
 	})
+
+	// AIの手でゲーム終了した場合（AIの手でプレイヤーが詰んだ）
+	if g.IsOver {
+		h.sendMessage(conn, ServerMessage{
+			Type:   "game_over",
+			Result: string(g.Result),
+			Reason: g.Reason,
+		})
+	}
 }
 
 // sendMessage はメッセージを送信する
@@ -158,5 +184,14 @@ func (h *WebSocketHandler) sendError(conn *websocket.Conn, errorMsg string) {
 	h.sendMessage(conn, ServerMessage{
 		Type:  "error",
 		Error: errorMsg,
+	})
+}
+
+// sendErrorWithType はエラータイプ付きのエラーメッセージを送信する
+func (h *WebSocketHandler) sendErrorWithType(conn *websocket.Conn, errorMsg, errorType string) {
+	h.sendMessage(conn, ServerMessage{
+		Type:      "error",
+		Error:     errorMsg,
+		ErrorType: errorType,
 	})
 }
