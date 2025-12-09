@@ -1,81 +1,61 @@
 /**
  * 将棋の型定義
- * 駒の種類、プレイヤー、盤面状態などを定義
+ * shogi.js の仕様に準拠しつつ、UI用の型を定義
  */
 
 // =====================================
-// プレイヤー定義
+// shogi.js 準拠の基本型
 // =====================================
 
-/** 先手/後手を表す型 */
-export type Player = 'sente' | 'gote';
+/** 手番 (0: 先手/Black, 1: 後手/White) */
+export type Color = 0 | 1;
+
+/** 駒の種類（shogi.jsの略称に準拠） */
+export type PieceKind = 
+  | 'FU' | 'KY' | 'KE' | 'GI' | 'KI' | 'OU' | 'HI' | 'KA' // 基本
+  | 'TO' | 'NY' | 'NK' | 'NG' | 'RY' | 'UM';              // 成り
 
 // =====================================
-// 駒の種類定義
+// UI連携用の型
 // =====================================
 
-/** 基本駒（成っていない状態） */
-export type BasePieceType = 
-  | 'king'    // 玉（王）
-  | 'rook'    // 飛車
-  | 'bishop'  // 角行
-  | 'gold'    // 金将
-  | 'silver'  // 銀将
-  | 'knight'  // 桂馬
-  | 'lance'   // 香車
-  | 'pawn';   // 歩兵
-
-/** 成り駒 */
-export type PromotedPieceType = 
-  | 'dragon'          // 龍（成飛）
-  | 'horse'           // 馬（成角）
-  | 'promotedSilver'  // 成銀
-  | 'promotedKnight'  // 成桂
-  | 'promotedLance'   // 成香
-  | 'promotedPawn';   // と金
-
-/** 全ての駒の種類 */
-export type PieceType = BasePieceType | PromotedPieceType;
-
-// =====================================
-// 駒の定義
-// =====================================
-
-/** 駒を表すインターフェース */
+/** * UI上の駒情報
+ * shogi.js の Piece オブジェクトをラップ、あるいは互換性を持たせる
+ */
 export interface Piece {
-  /** 駒の種類 */
-  type: PieceType;
-  /** 所有者（先手/後手） */
-  owner: Player;
+  /** 駒の種類 (FU, HI, ...) */
+  kind: PieceKind;
+  /** 所有者 (0: 先手, 1: 後手) */
+  color: Color;
 }
 
-// =====================================
-// 盤面の定義
-// =====================================
-
-/**
- * 盤面の状態を表す型
- * 9x9の2次元配列で、各要素は駒またはnull（空マス）
- * 
- * インデックスの説明:
- * - boardState[row][col]
- * - row: 0が一番上（後手側の奥）、8が一番下（先手側の奥）
- * - col: 0が左（9筋）、8が右（1筋）
- * 
- * 将棋の座標系との対応:
- * - 筋（縦の列）: 9筋〜1筋 = col 0〜8
- * - 段（横の行）: 一段〜九段 = row 0〜8
+/** * 盤面の1マス
+ * GameBoardコンポーネントが描画に使用する情報
  */
-export type BoardState = (Piece | null)[][];
+export interface Square {
+  /** 一意なID (例: "77", "28") - 筋+段 */
+  id: string;
+  /** UI描画用のX座標 (0-8: 9筋->1筋) */
+  x: number;
+  /** UI描画用のY座標 (0-8: 一段->九段) */
+  y: number;
+  /** そのマスにある駒（なければnull） */
+  piece: Piece | null;
+}
 
-// =====================================
-// マス目の位置
-// =====================================
+/** 持ち駒 */
+export interface Hand {
+  /** 所有者 */
+  color: Color;
+  /** * 持ち駒のリスト
+   * shogi.jsは通常 {FU: 2, KI: 1} のようなカウントを持つが、
+   * UI表示用に展開した配列として扱う（従来のUIと合わせるため）
+   */
+  pieces: Piece[];
+}
 
-/** 盤上の位置を表すインターフェース */
+/** 座標インターフェース */
 export interface Position {
-  /** 行（0-8、上から下） */
-  row: number;
-  /** 列（0-8、左から右） */
-  col: number;
+  x: number;
+  y: number;
 }
