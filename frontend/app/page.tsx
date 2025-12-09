@@ -88,11 +88,13 @@ export default function Home() {
             <div className="flex flex-col gap-4 w-full max-w-xs mt-4">
               
               {/* 設定ボタン */}
-              <button
+              {/* 変更点：設定ボタンを押すと、設定画面にとべる */}
+              <Link
+                href="/settings"
                 className="relative inline-flex items-center justify-center px-8 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
               >
                 設定
-              </button>
+              </Link>
               
               {/* 棋譜ボタン */}
               <button
