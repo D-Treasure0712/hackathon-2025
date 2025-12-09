@@ -10,3 +10,5 @@ docker compose up --build
 Frontend確認用URL：<http://localhost:3000>
 
 Backend確認用URL：<http://localhost:8080>
+
+皆さんがんばりましょう
