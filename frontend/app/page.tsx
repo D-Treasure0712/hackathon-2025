@@ -4,91 +4,107 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-slate-900 text-white font-serif">
-      {/* 背景エリア */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-indigo-900 via-slate-900 to-black opacity-80" />
-      {/* 藤の花の装飾（CSSで疑似的に表現） */}
-      <div className="absolute top-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-transparent to-transparent z-0 pointer-events-none" />
+    // 最外層のdiv: relativeを維持
+    <div className="relative min-h-screen w-full overflow-hidden text-white font-serif">
+      
+      {/* 🏞️ 背景画像エリア (Z-index: 0) */}
+      <div className="absolute inset-0 z-0">
+        
+        {/* 1. ベースの背景画像 */}
+        <Image
+          src="/images/background2.png" 
+          alt="厳かな和風背景"
+          fill 
+          priority 
+          style={{ objectFit: 'cover' }}
+          className="opacity-80 pointer-events-none" 
+        />
+        
+        {/* 2. 厳かな雰囲気を保つための黒いオーバーレイ (10%) */}
+        <div className="absolute inset-0 bg-black/10" />
+      </div>
 
       <main className="relative z-10 flex min-h-screen flex-col items-center py-8 px-4 md:px-8">
         
-        {/* 1. タイトルセクション */}
-        <div className="mt-4 mb-8 flex flex-col items-center text-center animate-fade-in-up">
-          <p className="mb-2 text-lg md:text-xl text-amber-400 tracking-widest font-bold drop-shadow-md">
-            ー 最強からの挑戦状 ー
-          </p>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
-            <span className="bg-gradient-to-br from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              Fujii-kun
-            </span>
-          </h1>
-        </div>
-
-        {/* 2. メインコンテンツエリア (PCでは横並び、スマホでは縦並び) */}
-        <div className="flex w-full max-w-6xl flex-col items-center justify-center gap-8 md:flex-row md:items-end md:gap-16 flex-grow">
+        {/* 🚀 メインレイアウトコンテナ: ロゴと右側コンテンツを横並びに配置 🚀 */}
+        <div className="flex w-full max-w-6xl flex-col items-start justify-center gap-8 md:flex-row md:items-start md:justify-between flex-grow mt-16 md:mt-0">
           
-          {/* 左側：将棋盤エリア */}
-          <div className="relative w-full max-w-xl aspect-[1/0.8] flex items-end justify-center order-1 md:order-1">
-            {/* 将棋盤のダミー (画像があれば <Image ... /> に置き換え) */}
-            <div className="w-full h-full bg-amber-700/80 rounded-t-xl border-t-4 border-amber-300 shadow-2xl transform perspective-1000 rotate-x-12 flex items-center justify-center text-amber-200/50 text-xl font-bold">
-              <div className="text-center">
-                <p>将棋盤画像</p>
-                <p className="text-xs">public/images/shogi-board.png</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 右側：棋士画像 & 対局ボタンエリア */}
-          <div className="flex flex-col items-center gap-6 order-2 md:order-2 animate-fade-in delay-500">
+          {/* ===================================== */}
+          {/* 1. 左カラム: ロゴセクション (最大限に大きく) */}
+          {/* ===================================== */}
+          {/* md:w-2/5: PCで左側を広く確保 */}
+          <div className="flex flex-col items-start md:w-2/5 animate-fade-in-up mt-4 md:mt-16">
             
-            {/* 棋士画像 (ChessPlayer.png) */}
-            <div className="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center">
-              {/* 画像ファイルがある場合の記述例（コメントアウトを外して使ってください）*/
+            {/* 🔴 ロゴ本体: h-クラスを h-64 md:h-96 に拡大し、ロゴを大きく表示 🔴 */}
+            <h1 className="relative h-64 w-full max-w-none md:h-96 md:max-w-none font-bold tracking-tight text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
+              <Image
+                src="/images/logo4.png" 
+                alt="Fujii-kun ロゴ"
+                fill // 👈 親要素 (h1) のサイズに自動調整
+                style={{ objectFit: 'contain' }} // 👈 アスペクト比を維持
+                className="drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]"
+              />
+            </h1>
+          </div>
+          
+          {/* ===================================== */}
+          {/* 2. 右カラム: 棋士画像と縦並びのボタン */}
+          {/* ===================================== */}
+          <div className="flex flex-col items-center w-full md:w-3/5 md:items-end gap-6 animate-fade-in delay-500 mt-8 md:mt-16">
+            
+            {/* 2-A. 棋士画像 (サイズを w-64/h-64, md:w-80/h-80 に拡大) */}
+            <div className="relative w-64 h-64 md:w-80 md:h- flex items-center justify-center">
               <Image 
-                src="/images/ChessPlayer.png" 
+                src="/images/chessplayer2.png" 
                 alt="棋士" 
-                width={256} 
+                width={256} // Imageコンポーネントの必須属性として維持
                 height={256} 
                 className="object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
               /> 
-              }
-              
-              {/* 画像がない時のダミー表示 */}
-              {/* <div className="w-40 h-40 md:w-56 md:h-56 rounded-full bg-gradient-to-b from-slate-700 to-slate-800 border-2 border-slate-600 flex items-center justify-center text-slate-400">
-                <div className="text-center text-sm">
-                  <p>ChessPlayer.png</p>
-                  <p>配置エリア</p>
-                </div>
-              </div> */}
             </div>
 
-            {/* 対局開始ボタン */}
+            {/* 2-B. 対局開始ボタン (メインボタン) */}
             <Link
               href="/game"
-              className="group relative inline-flex items-center justify-center px-10 py-4 overflow-hidden font-bold rounded-lg bg-indigo-950 border-2 border-amber-500 text-amber-50 shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(245,158,11,0.6)] active:scale-95 w-full md:w-auto"
+              // ボタン全体の高さ (h-16 md:h-28) を設定
+              className="group relative inline-flex items-center justify-center overflow-hidden rounded-lg w-full max-w-xs text-xl tracking-widest mt-4 h-16 md:h-28"
             >
-              <span className="absolute inset-0 w-full h-full bg-gradient-to-br from-amber-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-              <span className="relative text-2xl tracking-widest">対局開始</span>
+              {/* ボタンの背景画像 */}
+              <Image
+                src="/images/start-button.png" 
+                alt="対局開始ボタン"
+                fill 
+                priority 
+                style={{ objectFit: 'cover' }} 
+                className="absolute inset-0 z-0 transition-transform duration-300 group-hover:scale-105" 
+              />
+
+              {/* ホバー時のオーバーレイ */}
+              <span className="absolute inset-0 z-10 w-full h-full bg-gradient-to-br from-amber-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+
             </Link>
+            
+            {/* 2-C. 設定・棋譜ボタン (縦に並べる) */}
+            <div className="flex flex-col gap-4 w-full max-w-xs mt-4">
+              
+              {/* 設定ボタン */}
+              <button
+                className="relative inline-flex items-center justify-center px-8 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
+              >
+                設定
+              </button>
+              
+              {/* 棋譜ボタン */}
+              <button
+                className="relative inline-flex items-center justify-center px-8 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
+              >
+                棋譜
+              </button>
+            </div>
           </div>
 
         </div>
       </main>
-
-      {/* アニメーション定義 */}
-      <style jsx global>{`
-        @keyframes fade-in-up {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fade-in {
-          0% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-        .animate-fade-in-up { animation: fade-in-up 1s ease-out forwards; }
-        .animate-fade-in { animation: fade-in 1.5s ease-out forwards; }
-        .delay-500 { animation-delay: 0.5s; }
-      `}</style>
     </div>
   );
 }
