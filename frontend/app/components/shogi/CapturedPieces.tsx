@@ -1,133 +1,126 @@
-/**
- * CapturedPieces コンポーネント
- * 持ち駒を表示するコンポーネント
- */
-
 'use client';
 
 import React from 'react';
-import { Hand, Piece, PieceType } from './hooks/useJShogi';
+import { Hand, Color, PieceKind, Piece } from './types';
 
-// =====================================
-// 駒の表示名マッピング
-// =====================================
-
-const PIECE_DISPLAY: Record<PieceType, string> = {
-  'oushou': '王',
-  'gyokushou': '玉',
-  'hisha': '飛',
-  'kakugyou': '角',
-  'kinshou': '金',
-  'ginshou': '銀',
-  'keima': '桂',
-  'kyousha': '香',
-  'fuhyou': '歩',
-  'ryuuou': '龍',
-  'ryuuma': '馬',
-  'narigin': '全',
-  'narikei': '圭',
-  'narikyou': '杏',
-  'tokin': 'と',
+// 表示用ラベル（shogi.jsの略称 -> 漢字）
+const HAND_PIECE_DISPLAY: Record<PieceKind, string> = {
+  'FU': '歩',
+  'KY': '香',
+  'KE': '桂',
+  'GI': '銀',
+  'KI': '金',
+  'OU': '王',
+  'HI': '飛',
+  'KA': '角',
+  // 成り駒が持ち駒になることはないが、型定義上含めておく
+  'TO': 'と',
+  'NY': '杏',
+  'NK': '圭',
+  'NG': '全',
+  'RY': '龍',
+  'UM': '馬',
 };
 
-// 持ち駒の表示順序（重要度順）
-const PIECE_ORDER: PieceType[] = ['hisha', 'kakugyou', 'kinshou', 'ginshou', 'keima', 'kyousha', 'fuhyou'];
+// 持ち駒の並び順定義
+const ORDER: PieceKind[] = ['HI', 'KA', 'KI', 'GI', 'KE', 'KY', 'FU'];
 
-// =====================================
-// Props定義
-// =====================================
-
-export interface CapturedPiecesProps {
-  /** 持ち駒データ */
-  hand: Hand;
-  /** 選択中の持ち駒ID */
-  selectedPieceId: number | null;
-  /** 持ち駒クリック時のコールバック */
-  onPieceClick: (pieceId: number) => void;
-  /** このプレイヤーの手番かどうか */
-  isCurrentTurn: boolean;
-  /** 表示位置（先手/後手で配置が変わる） */
-  position: 'left' | 'right';
+interface CapturedPiecesProps {
+  hands: Hand[];
+  targetPlayer: Color; // 表示対象のプレイヤー (0:先手, 1:後手)
+  currentPlayer: Color; // 現在の手番（操作可能か判定用）
+  selectedHandPieceId: string | null;
+  onHandPieceClick: (pieceId: string) => void;
 }
 
-// =====================================
-// コンポーネント
-// =====================================
-
-/**
- * 持ち駒一覧を表示するコンポーネント
- */
 export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
-  hand,
-  selectedPieceId,
-  onPieceClick,
-  isCurrentTurn,
-  position,
+  hands,
+  targetPlayer,
+  currentPlayer,
+  selectedHandPieceId,
+  onHandPieceClick,
 }) => {
-  // 持ち駒を種類ごとにグループ化
-  const groupedPieces = PIECE_ORDER.reduce((acc, type) => {
-    const pieces = hand.pieces.filter(p => p.type === type);
-    if (pieces.length > 0) {
-      acc.push({ type, pieces });
-    }
-    return acc;
-  }, [] as { type: PieceType; pieces: Piece[] }[]);
+  // 対象プレイヤーの持ち駒オブジェクトを取得
+  const targetHand = hands.find(h => h.color === targetPlayer);
+  const pieces = targetHand ? targetHand.pieces : [];
 
-  const isGote = hand.player_number === 2;
+  // 種類ごとにグループ化してカウント & 代表IDを保持
+  // Map<種類, { count: 枚数, firstId: クリック時に送るID }>
+  const groupedPieces = pieces.reduce((acc, piece, index) => {
+    // PieceのIDは useJShogi で "FU-0" のように生成されている想定
+    // もし生成されていない場合、ここでindexを使って擬似IDを作る必要がありますが、
+    // 前回の useJShogi 実装に合わせて "kind-index" 形式が来ている前提で進めます。
+    // ※ useJShogiの実装では ID = `${kind}-${i}` としています。
+    
+    // ここでは単純に配列内の順番でIDを特定します（useJShogi側で生成したIDと一致させるため）
+    // useJShogiのhands生成ロジックと合わせる必要があります。
+    // 今回は useJShogi 側で `handPieces.push({ kind, color })` としており、IDを持たせていませんでした。
+    // ★修正★ useJShogi側でIDを持たせるのがベストですが、
+    // ここでは「種類」をクリックしたら「その種類の持っている駒のどれか」を選択するようにします。
+    
+    // 補足: useJShogi側で onHandPieceClick("FU-0") を期待しているため、
+    // UI側で適切なIDを構築して渡す必要があります。
+    
+    if (!acc[piece.kind]) {
+      acc[piece.kind] = { count: 0, pieces: [] };
+    }
+    acc[piece.kind].count++;
+    acc[piece.kind].pieces.push(piece);
+    return acc;
+  }, {} as Record<PieceKind, { count: number, pieces: Piece[] }>);
+
+  const isSelf = targetPlayer === currentPlayer;
 
   return (
-    <div
-      className={`
-        flex flex-col gap-1 p-2
-        bg-amber-50 dark:bg-amber-950
-        border border-amber-300 dark:border-amber-700
-        rounded-lg
-        min-w-[60px] sm:min-w-[80px]
-        ${isGote ? 'rotate-180' : ''}
-      `}
-    >
-      {/* プレイヤー表示 */}
-      <div className={`
-        text-xs sm:text-sm font-bold text-center
-        ${isGote ? 'rotate-180' : ''}
-        ${isCurrentTurn ? 'text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400'}
-      `}>
-        {isGote ? '後手' : '先手'}
+    <div className={`
+      flex flex-wrap gap-2 p-2 rounded-lg min-h-[60px] items-center
+      ${targetPlayer === 0 ? 'bg-amber-100 dark:bg-amber-900/30 self-end' : 'bg-amber-100 dark:bg-amber-900/30 self-start'}
+    `}>
+      <div className="text-xs font-bold text-stone-500 w-full mb-1">
+        {targetPlayer === 0 ? '☗ 先手' : '☖ 後手'} 持駒
       </div>
 
-      {/* 持ち駒一覧 */}
-      <div className={`flex flex-col gap-1 ${isGote ? 'rotate-180' : ''}`}>
-        {groupedPieces.length === 0 ? (
-          <div className="text-xs text-zinc-400 text-center py-2">なし</div>
-        ) : (
-          groupedPieces.map(({ type, pieces }) => (
-            <button
-              key={type}
-              onClick={() => isCurrentTurn && onPieceClick(pieces[0].id)}
-              disabled={!isCurrentTurn}
-              className={`
-                flex items-center justify-center gap-1
-                px-2 py-1 rounded
-                text-sm sm:text-base font-bold
-                transition-colors
-                ${selectedPieceId && pieces.some(p => p.id === selectedPieceId)
-                  ? 'bg-blue-500 text-white'
-                  : isCurrentTurn
-                    ? 'bg-amber-100 dark:bg-amber-800 hover:bg-amber-200 dark:hover:bg-amber-700 cursor-pointer'
-                    : 'bg-amber-100 dark:bg-amber-800 opacity-50 cursor-not-allowed'
-                }
-              `}
-            >
-              <span>{PIECE_DISPLAY[type]}</span>
-              {pieces.length > 1 && (
-                <span className="text-xs">×{pieces.length}</span>
-              )}
-            </button>
-          ))
-        )}
-      </div>
+      {ORDER.map((kind) => {
+        const group = groupedPieces[kind];
+        if (!group) return null;
+
+        // 選択中かどうか判定 (選択中のIDが、このグループのいずれかのIDと一致するか)
+        // ※ useJShogi側で生成したID形式 "KIND-index" と照合
+        const isSelected = selectedHandPieceId?.startsWith(`${kind}-`);
+
+        return (
+          <button
+            key={kind}
+            disabled={!isSelf} // 自分の手番でなければ選択不可
+            onClick={() => {
+              // その種類の駒の0番目のIDを指定してクリックイベント発火
+              // useJShogi側では "FU-0", "FU-1" ... と生成されている前提
+              onHandPieceClick(`${kind}-0`);
+            }}
+            className={`
+              relative px-2 py-1 border rounded shadow-sm text-lg font-serif
+              transition-all
+              ${isSelected 
+                ? 'bg-blue-600 text-white border-blue-800' 
+                : isSelf 
+                  ? 'bg-amber-50 hover:bg-amber-200 border-amber-300 text-stone-900 cursor-pointer' 
+                  : 'bg-stone-200 text-stone-500 cursor-default'
+              }
+            `}
+          >
+            <span>{HAND_PIECE_DISPLAY[kind]}</span>
+            {group.count > 1 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                {group.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+      
+      {pieces.length === 0 && (
+        <span className="text-sm text-stone-400">なし</span>
+      )}
     </div>
   );
 };
-
-export default CapturedPieces;
