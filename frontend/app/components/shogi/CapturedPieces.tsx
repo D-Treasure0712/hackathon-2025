@@ -51,16 +51,16 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
     // もし生成されていない場合、ここでindexを使って擬似IDを作る必要がありますが、
     // 前回の useJShogi 実装に合わせて "kind-index" 形式が来ている前提で進めます。
     // ※ useJShogiの実装では ID = `${kind}-${i}` としています。
-    
+
     // ここでは単純に配列内の順番でIDを特定します（useJShogi側で生成したIDと一致させるため）
     // useJShogiのhands生成ロジックと合わせる必要があります。
     // 今回は useJShogi 側で `handPieces.push({ kind, color })` としており、IDを持たせていませんでした。
     // ★修正★ useJShogi側でIDを持たせるのがベストですが、
     // ここでは「種類」をクリックしたら「その種類の持っている駒のどれか」を選択するようにします。
-    
+
     // 補足: useJShogi側で onHandPieceClick("FU-0") を期待しているため、
     // UI側で適切なIDを構築して渡す必要があります。
-    
+
     if (!acc[piece.kind]) {
       acc[piece.kind] = { count: 0, pieces: [] };
     }
@@ -100,10 +100,10 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
             className={`
               relative px-2 py-1 border rounded shadow-sm text-lg font-serif
               transition-all
-              ${isSelected 
-                ? 'bg-blue-600 text-white border-blue-800' 
-                : isSelf 
-                  ? 'bg-amber-50 hover:bg-amber-200 border-amber-300 text-stone-900 cursor-pointer' 
+              ${isSelected
+                ? 'bg-blue-600 text-white border-blue-800'
+                : isSelf
+                  ? 'bg-amber-50 hover:bg-amber-200 border-amber-300 text-stone-900 cursor-pointer'
                   : 'bg-stone-200 text-stone-500 cursor-default'
               }
             `}
@@ -117,7 +117,7 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
           </button>
         );
       })}
-      
+
       {pieces.length === 0 && (
         <span className="text-sm text-stone-400">なし</span>
       )}
