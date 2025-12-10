@@ -55,20 +55,18 @@ export const ShogiBoard: React.FC<ShogiBoardProps> = ({
       <div
         className="
           aspect-square
-          border-2 border-black
+          bg-amber-100 dark:bg-amber-900
+          border-2 border-amber-800 dark:border-amber-600
           p-1
         "
         style={{
           width: 'min(90vw, 75vh)',
           maxWidth: '100%',
-          backgroundImage: 'url(/tile_wood6.png)',
-          backgroundSize: 'cover',
         }}
       >
         {/* 
           9x9グリッド
           CSS Gridで均等分割
-          グリッド線は黒
         */}
         <div
           className="
@@ -77,7 +75,7 @@ export const ShogiBoard: React.FC<ShogiBoardProps> = ({
             grid-rows-9
             w-full h-full
             gap-px
-            bg-black
+            bg-amber-800 dark:bg-amber-600
           "
         >
           {/* 各マスをレンダリング */}
@@ -86,14 +84,10 @@ export const ShogiBoard: React.FC<ShogiBoardProps> = ({
               <div
                 key={`${rowIndex}-${colIndex}`}
                 className="
+                  bg-amber-100 dark:bg-amber-200
                   flex items-center justify-center
                   aspect-square
                 "
-                style={{
-                  backgroundImage: 'url(/tile_wood6.png)',
-                  backgroundSize: '900% 900%',
-                  backgroundPosition: `${colIndex * 12.5}% ${rowIndex * 12.5}%`,
-                }}
                 data-row={rowIndex}
                 data-col={colIndex}
                 data-position={`${9 - colIndex}${['一', '二', '三', '四', '五', '六', '七', '八', '九'][rowIndex]}`}
