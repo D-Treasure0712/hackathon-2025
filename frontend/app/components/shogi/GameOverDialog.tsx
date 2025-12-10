@@ -7,7 +7,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { PlayerNumber } from './hooks/useJShogi';
+import { Color } from './types';
 
 // =====================================
 // Props定義
@@ -15,9 +15,9 @@ import { PlayerNumber } from './hooks/useJShogi';
 
 export interface GameOverDialogProps {
   /** 勝者（null: 未決着） */
-  winner: PlayerNumber | null;
+  winner: Color | null;
   /** プレイヤーの先手/後手 */
-  playerNumber: PlayerNumber;
+  playerNumber: Color;
   /** 再対局コールバック */
   onRematch: () => void;
 }
@@ -45,7 +45,7 @@ export const GameOverDialog: React.FC<GameOverDialogProps> = ({
         {/* 結果表示 */}
         <div className={`
           text-3xl sm:text-4xl font-bold mb-2
-          ${isWinner 
+          ${isWinner
             ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500'
             : 'text-zinc-600 dark:text-zinc-400'
           }

@@ -48,7 +48,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const gameRef = useRef<any>(new Shogi()); // 型定義がない場合は any、ある場合は Shogi
 
   // 画面再描画用のバージョン管理（インスタンスの中身が変わったことをReactに通知）
-  const [version, setVersion] = useState(0);
+  const [, setVersion] = useState(0);
 
   // UI状態
   const [selectedSquareId, setSelectedSquareId] = useState<string | null>(null);
@@ -71,7 +71,6 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   // 盤面データの生成 (shogi.js -> UI用Square配列)
   // -------------------------------------------------------
   const squares: Square[] = [];
-  const board = gameRef.current.board; // shogi.js の盤面データ取得(実装依存)
 
   // shogi.jsのボード（通常 1-9 のインデックスを持つ2次元配列）を走査
   for (let y = 0; y < 9; y++) {
@@ -169,7 +168,6 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       if (gameRef.current.isCheck(currentTurn)) {
         // 王手状態なので打ちを戻す
         gameRef.current.undrop(toX, toY);
-        setShowCheckWarning(true);
         setShowCheckWarning(true);
         setSelectedHandPieceId(null);
         setSelectedSquareId(null);
@@ -357,7 +355,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       });
       setAvailableMoves(newAvailableMoves);
     }
-  }, []);
+  }, [selectedHandPieceId]);
 
   // 成り選択
   const onPromotionSelect = useCallback((promote: boolean) => {
@@ -387,6 +385,13 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setVersion(v => v + 1);
     setWinner(null);
     setLastMoveToSquareId(null);
+    setSelectedSquareId(null);
+    setSelectedHandPieceId(null);
+    setWaitingForPromotion(false);
+    setWaitingForResignConfirm(false);
+    setShowCheckWarning(false);
+    setPendingMove(null);
+    setAvailableMoves(new Set());
   }, []);
 
   return {
