@@ -33,7 +33,14 @@ export interface UseJShogiReturn {
   resetGame: () => void;
   playerColor: Color;
   availableMoves: Set<string>; // 移動可能なマスのIDセット
+  canUndo: boolean; // 待ったが可能かどうか
+  onUndo: () => void; // 待った（一手戻す）
 }
+
+// 待った用の履歴データ型
+type MoveRecord =
+  | { type: 'move'; fromX: number; fromY: number; toX: number; toY: number; promote: boolean; capturedKind?: PieceKind }
+  | { type: 'drop'; toX: number; toY: number; kind: PieceKind };
 
 // 座標変換ヘルパー
 // UI: x(0=9筋, 8=1筋), y(0=1段, 8=9段)
@@ -59,7 +66,8 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [showCheckWarning, setShowCheckWarning] = useState(false); // 王手警告
   const [winner, setWinner] = useState<Color | null>(null);
   const [lastMoveToSquareId, setLastMoveToSquareId] = useState<string | null>(null);
-  const [availableMoves, setAvailableMoves] = useState<Set<string>>(new Set()); // 追加
+  const [availableMoves, setAvailableMoves] = useState<Set<string>>(new Set());
+  const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]); // 待った用履歴
 
   // 初期化
   useEffect(() => {
@@ -147,6 +155,14 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
       // 最終手情報の更新など
       setLastMoveToSquareId(`${toX}${toY}`);
+
+      // 履歴に記録（待った用）
+      setMoveHistory(prev => [...prev, {
+        type: 'move',
+        fromX, fromY, toX, toY, promote,
+        capturedKind
+      }]);
+
       setVersion(v => v + 1);
     } catch (e) {
       console.error("Move error:", e);
@@ -176,6 +192,13 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       }
 
       setLastMoveToSquareId(`${toX}${toY}`);
+
+      // 履歴に記録（待った用）
+      setMoveHistory(prev => [...prev, {
+        type: 'drop',
+        toX, toY, kind
+      }]);
+
       setVersion(v => v + 1);
     } catch (e) {
       console.error("Drop error:", e);
@@ -392,7 +415,41 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setShowCheckWarning(false);
     setPendingMove(null);
     setAvailableMoves(new Set());
+    setMoveHistory([]); // 履歴もクリア
   }, []);
+
+  // 待った（一手戻す）
+  const onUndo = useCallback(() => {
+    if (moveHistory.length === 0 || winner !== null) return;
+
+    const lastMove = moveHistory[moveHistory.length - 1];
+
+    try {
+      if (lastMove.type === 'move') {
+        gameRef.current.unmove(
+          lastMove.fromX, lastMove.fromY,
+          lastMove.toX, lastMove.toY,
+          lastMove.promote,
+          lastMove.capturedKind
+        );
+      } else {
+        // dropの場合
+        gameRef.current.undrop(lastMove.toX, lastMove.toY);
+      }
+
+      // 履歴から削除
+      setMoveHistory(prev => prev.slice(0, -1));
+      setLastMoveToSquareId(null);
+      setSelectedSquareId(null);
+      setSelectedHandPieceId(null);
+      setAvailableMoves(new Set());
+      setVersion(v => v + 1);
+    } catch (e) {
+      console.error("Undo error:", e);
+    }
+  }, [moveHistory, winner]);
+
+  const canUndo = moveHistory.length > 0 && winner === null;
 
   return {
     squares,
@@ -414,5 +471,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     resetGame,
     playerColor,
     availableMoves,
+    canUndo,
+    onUndo,
   };
 }
