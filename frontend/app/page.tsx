@@ -6,7 +6,7 @@ import Image from "next/image";
 export default function Home() {
   return (
     // ✨ 全体のコンテナ: 画面いっぱいに広げ、基本のフォントなどを設定
-    <div className="relative min-h-screen w-full overflow-hidden text-white font-serif">
+    <div className="relative min-h-svh w-full overflow-hidden text-white font-serif">
       
       {/* =================================================================
           🏞️ 背景画像エリア (Z-index: 0 / 最背面)
