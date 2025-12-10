@@ -145,7 +145,6 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         // 王手状態なので一手戻す
         gameRef.current.unmove(fromX, fromY, toX, toY, promote, capturedKind);
         setShowCheckWarning(true);
-        setShowCheckWarning(true);
         setSelectedSquareId(null);
         setAvailableMoves(new Set()); // クリア
         setPendingMove(null);
