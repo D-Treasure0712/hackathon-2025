@@ -67,7 +67,6 @@ export const ShogiPiece: React.FC<ShogiPieceProps> = ({
         width={40}
         height={40}
         className="w-full h-full object-contain"
-        draggable={false} 
         priority
       />
     </div>
