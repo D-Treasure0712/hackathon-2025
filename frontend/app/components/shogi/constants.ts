@@ -6,36 +6,36 @@
 import { PieceType, BoardState, Piece, Player } from './types';
 
 // =====================================
-// 駒の画像パスマッピング
+// 駒の表示名マッピング
 // =====================================
 
 /**
- * 駒の種類から画像パスへのマッピング
- * Next.jsでは/publicフォルダ内のファイルは/から始まるパスでアクセス
+ * 駒の種類から表示する文字へのマッピング
+ * 先手の玉は「玉」、後手の玉は「王」として表示することも可能
  */
-export const PIECE_IMAGE_PATHS: Record<PieceType, string> = {
+export const PIECE_DISPLAY_NAMES: Record<PieceType, string> = {
   // 基本駒
-  king: '/pieces/1GY.svg',
-  rook: '/pieces/1HI.svg',
-  bishop: '/pieces/1KA.svg',
-  gold: '/pieces/1KI.svg',
-  silver: '/pieces/1GI.svg',
-  knight: '/pieces/1KE.svg',
-  lance: '/pieces/1KY.svg',
-  pawn: '/pieces/1FU.svg',
+  king: '玉',
+  rook: '飛',
+  bishop: '角',
+  gold: '金',
+  silver: '銀',
+  knight: '桂',
+  lance: '香',
+  pawn: '歩',
   // 成り駒
-  dragon: '/pieces/1RY.svg',
-  horse: '/pieces/1UM.svg',
-  promotedSilver: '/pieces/1NG.svg',
-  promotedKnight: '/pieces/1NK.svg',
-  promotedLance: '/pieces/1NY.svg',
-  promotedPawn: '/pieces/1TO.svg',
+  dragon: '龍',
+  horse: '馬',
+  promotedSilver: '全',
+  promotedKnight: '圭',
+  promotedLance: '杏',
+  promotedPawn: 'と',
 };
 
 /**
- * 後手の玉の画像パス（「王」として表示）
+ * 後手の玉を「王」として表示する場合のマッピング
  */
-export const GOTE_KING_IMAGE_PATH = '/pieces/1OU.svg';
+export const GOTE_KING_DISPLAY = '王';
 
 // =====================================
 // 成り駒への変換マッピング
