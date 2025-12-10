@@ -63,12 +63,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   return (
     <div className="flex flex-col items-center">
       <div
-        className="
-          aspect-square
-          bg-amber-100 dark:bg-amber-900
-          border-2 border-amber-800 dark:border-amber-600
-          p-1
-        "
+        className="aspect-square bg-amber-100 dark:bg-amber-900 border-2 border-amber-800 dark:border-amber-600 p-1"
         style={{
           width: 'min(85vw, 60vh)',
           maxWidth: '100%',
