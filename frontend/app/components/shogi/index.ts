@@ -6,8 +6,14 @@
 // 型定義（旧）
 export * from './types';
 
+export * from './constants';
+
 // フック
 export * from './hooks/useJShogi';
+
+// コンポーネント
+export { ShogiPiece } from './ShogiPiece';
+export { ShogiBoard } from './ShogiBoard';
 
 // 新コンポーネント（対局用）
 export { GameBoard } from './GameBoard';
