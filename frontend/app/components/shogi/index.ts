@@ -17,3 +17,4 @@ export { TurnIndicator } from './TurnIndicator';
 export { PromotionDialog } from './PromotionDialog';
 export { GameOverDialog } from './GameOverDialog';
 export { ResignConfirmDialog } from './ResignConfirmDialog';
+export { CheckWarningDialog } from './CheckWarningDialog';  
