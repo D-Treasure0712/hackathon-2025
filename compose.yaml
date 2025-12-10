@@ -7,6 +7,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    # マウント後に依存を再インストールしてモジュール欠落を防ぐ（ここを追加してちょ）
+    command: sh -c "npm install && npm run dev"
     environment:
       - WATCHPACK_POLLING=true # Windowsでのホットリロード対応
     tty: true # コンテナを維持させる
