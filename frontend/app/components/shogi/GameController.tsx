@@ -38,6 +38,8 @@ export const GameController: React.FC = () => {
     onResignConfirm,
     resetGame,
     availableMoves,
+    canUndo,
+    onUndo,
   } = useJShogi({ playerColor: 0 });
 
   return (
@@ -83,6 +85,22 @@ export const GameController: React.FC = () => {
 
       {/* 5. 操作ボタンエリア */}
       <div className="flex gap-4 mt-6">
+        {/* 待ったボタン */}
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className={`
+            px-4 py-2 rounded font-bold transition-colors
+            ${canUndo
+              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }
+          `}
+        >
+          待った
+        </button>
+
+        {/* 投了ボタン */}
         <button
           onClick={onResignRequest}
           disabled={winner !== null}
