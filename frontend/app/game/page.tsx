@@ -2,9 +2,10 @@
  * 対局画面
  * 将棋盤を表示し、対局を行う画面
  */
-import BackgroundMusic from './components/BackgroundMusic';
+'use client';
 
-import { ShogiBoard, INITIAL_BOARD_STATE } from '../components/shogi';
+import BackgroundMusic from './components/BackgroundMusic';
+import { GameController } from '../components/shogi';
 
 export default function GamePage() {
   return (
@@ -17,22 +18,14 @@ export default function GamePage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
           対局画面
         </h1>
-
-        {/* 
-          将棋盤
-          初期配置（平手）で表示
-          将来的にはstateで盤面を管理する
-        */}
-        <ShogiBoard boardState={INITIAL_BOARD_STATE} />
-
-        {/* 
-          プレースホルダー: 操作パネル
-          将来的にここに手番表示、駒台、操作ボタンなどを配置
-        */}
-        <div className="text-sm text-zinc-500 dark:text-zinc-400">
-          ※ 現在は表示のみ（駒の移動は未実装）
-        </div>
       </main>
+      {/* 
+        GameController: 対局全体を管理
+        - 先手/後手のランダム決定
+        - 盤面・持ち駒・手番の表示
+        - 駒の移動処理
+      */}
+      <GameController />
     </div>
   );
 }
