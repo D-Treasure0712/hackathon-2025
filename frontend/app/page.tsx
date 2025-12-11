@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 // 🎬 アニメーション用ライブラリ
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
@@ -26,6 +26,9 @@ const FloatingPetal = () => {
   const randomScale = 0.5 + Math.random() * 0.5;  // 花びらのサイズ (0.5倍〜1.0倍)
   const randomRotationSpeed = (Math.random() - 0.5) * 2; // 回転速度と方向
 
+  const randomXOffset1 = -5 + Math.random() * 10; // 1回目の揺れ幅 (-5vw 〜 +5vw)
+  const randomXOffset2 = -5 + Math.random() * 10; // 2回目の揺れ幅 (-5vw 〜 +5vw)
+
   // 花びら単体のアニメーション定義
   const petalVariants: Variants = {
     initial: {
@@ -33,7 +36,7 @@ const FloatingPetal = () => {
       x: `${randomXStart}vw`,
       opacity: 0,
       scale: randomScale,
-      rotate: Math.random() * 360,
+      rotate: randomRotationSpeed * 360,
     },
     animate: {
       y: "110vh", // 画面の下側（見えない位置）まで移動
@@ -42,9 +45,9 @@ const FloatingPetal = () => {
       // X軸（横方向）の揺らぎ：左右にひらひら舞う動きを表現
       x: [
         `${randomXStart}vw`,
-        `${randomXStart - 5 + Math.random() * 10}vw`,
+        `${randomXStart + randomXOffset1}vw`,
         `${randomXStart}vw`,
-        `${randomXStart - 5 + Math.random() * 10}vw`,
+        `${randomXStart + randomXOffset2}vw`,
         `${randomXStart}vw`
       ],
       transition: {
@@ -71,7 +74,7 @@ const FloatingPetal = () => {
       variants={petalVariants}
       initial="initial"
       animate="animate"
-      className="absolute top-0 pointer-events-none z-1" // z-1: 背景より手前、コンテンツより奥
+      className="absolute top-0 pointer-events-none z-10" // z-10: 背景より手前、コンテンツより奥
       style={{ width: '20px', height: '20px' }} // 花びらの基準サイズ
     >
       <Image
@@ -172,16 +175,16 @@ export default function Home() {
   useEffect(() => {
     setIsClient(true); // クライアントでの描画開始を記録
 
-    // 3秒後にイントロ画面を非表示にするタイマー
+    // 2秒後にイントロ画面を非表示にするタイマー
     const timer = setTimeout(() => {
       setShowIntro(false);
-    }, 3000);
+    }, 2000);
 
     return () => clearTimeout(timer); // クリーンアップ
   }, []);
 
   // 🌸 花びらの生成枚数
-  const petalCount = 40;
+  const petalCount = 30;
 
   return (
     // ✨ 全体のラッパー
@@ -237,7 +240,7 @@ export default function Home() {
         背景より手前、コンテンツより奥に配置。
         isClient チェックにより、サーバーとクライアントの整合性を保ちます。
       */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-1">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
         {isClient && [...Array(petalCount)].map((_, i) => (
           <FloatingPetal key={i} />
         ))}
@@ -308,7 +311,7 @@ export default function Home() {
                   variants={itemFadeUpVariant}
                 >
                   <Image 
-                    src="/images/chessplayer.png" 
+                    src="/images/ChessPlayer.png" 
                     alt="棋士" 
                     width={500}
                     height={500}
@@ -323,7 +326,7 @@ export default function Home() {
                 >
                   <Link
                     href="/game"
-                    className="relative z-10 -mt-2 md:-mt-20 group inline-flex items-center justify-center overflow-hidden rounded-lg w-80 h-24 md:w-80 md:h-24 text-xl tracking-widest"
+                    className="relative z-10 -mt-2 md:-mt-20 group inline-flex items-center justify-center overflow-hidden rounded-lg w-80 h-24 md:w-80 md:h-30 text-xl tracking-widest"
                   >
                     <Image
                       src="/images/start-button.png" 
@@ -334,6 +337,8 @@ export default function Home() {
                       // ホバー時に画像を少し拡大するエフェクト
                       className="absolute inset-0 z-0 transition-transform duration-300 group-hover:scale-105" 
                     />
+                    < span  className = "sr-only" >対局開始</ span >
+                    
                     {/* ホバー時の光のエフェクト */}
                     <span className="absolute inset-0 z-10 w-full h-full bg-gradient-to-br from-amber-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                   </Link>
@@ -349,12 +354,12 @@ export default function Home() {
                     className="relative flex-1 md:flex-none md:w-full inline-flex items-center justify-center px-4 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
                   >
                     設定
-                  </Link>
+                  </Link>                  
                   
                   <button
                     className="relative flex-1 md:flex-none md:w-full inline-flex items-center justify-center px-4 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
                   >
-                    棋譜
+                    藤井君の歴史
                   </button>
                 </motion.div>
 
