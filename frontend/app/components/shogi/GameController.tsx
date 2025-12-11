@@ -52,6 +52,11 @@ export const GameController: React.FC = () => {
     availableMoves,
     canUndo,
     onUndo,
+    // アニメーション関連
+    moveAnimation,
+    flyingPiece,
+    onAnimationComplete,
+    onFlyingComplete,
   } = useJShogi({ playerColor: 0 });
 
   // 準備完了前はローディング表示
@@ -93,6 +98,11 @@ export const GameController: React.FC = () => {
         onSquareClick={onSquareClick}
         pieceFolder={pieceFolder}
         boardBackground={boardBg}
+        // アニメーション関連
+        moveAnimation={moveAnimation}
+        flyingPiece={flyingPiece}
+        onAnimationComplete={onAnimationComplete}
+        onFlyingComplete={onFlyingComplete}
       />
 
       {/* 4. 先手（自分）の持ち駒 */}
