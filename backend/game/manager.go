@@ -20,16 +20,16 @@ const (
 
 // Game は1つの対局を管理する構造体
 type Game struct {
-	ID       string
-	Moves    []string // USI形式の手履歴
-	Engine   *engine.USIEngine
-	Board    *ShogiBoard // gshogiによる盤面管理
-	IsOver   bool
-	Result   GameResult
-	Reason   string // 終了理由: "resign", "checkmate", "rep_draw", "win"
-	BTime    int    // 先手残り時間（ミリ秒）
-	WTime    int    // 後手残り時間（ミリ秒）
-	mu       sync.Mutex
+	ID     string
+	Moves  []string // USI形式の手履歴
+	Engine *engine.USIEngine
+	Board  *ShogiBoard // gshogiによる盤面管理
+	IsOver bool
+	Result GameResult
+	Reason string // 終了理由: "resign", "checkmate", "rep_draw", "win"
+	BTime  int    // 先手残り時間（ミリ秒）
+	WTime  int    // 後手残り時間（ミリ秒）
+	mu     sync.Mutex
 }
 
 // GameManager は複数の対局を管理する構造体
@@ -113,13 +113,21 @@ func (g *Game) GetPosition() string {
 	return fmt.Sprintf("position startpos moves %s", strings.Join(g.Moves, " "))
 }
 
+// MoveResponse はプレイヤーの手に対するAIの応答
+type MoveResponse struct {
+	Move       string // AIの手
+	IsBookMove bool   // 定石からの手かどうか
+}
+
 // PlayMove はプレイヤーの手を受け取り、AIの応手を返す
-func (g *Game) PlayMove(playerMove string) (aiMove string, err error) {
+func (g *Game) PlayMove(playerMove string) (MoveResponse, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	result := MoveResponse{}
+
 	if g.IsOver {
-		return "", fmt.Errorf("対局は既に終了しています")
+		return result, fmt.Errorf("対局は既に終了しています")
 	}
 
 	// プレイヤーの手を履歴に追加
@@ -128,12 +136,16 @@ func (g *Game) PlayMove(playerMove string) (aiMove string, err error) {
 
 	// AIの手を取得（AIが不正な手を検知した場合はエラーを返す）
 	position := g.GetPosition()
-	aiMove, err = g.Engine.GetBestMove(position, g.BTime, g.WTime)
+	engineResult, err := g.Engine.GetBestMove(position, g.BTime, g.WTime)
 	if err != nil {
 		// プレイヤーの手が不正だった場合、履歴から削除
 		g.Moves = g.Moves[:len(g.Moves)-1]
-		return "", fmt.Errorf("不正な手です: %s", playerMove)
+		return result, fmt.Errorf("不正な手です: %s", playerMove)
 	}
+
+	aiMove := engineResult.Move
+	result.Move = aiMove
+	result.IsBookMove = engineResult.IsBookMove
 
 	// 特殊応答をチェック
 	switch aiMove {
@@ -141,23 +153,23 @@ func (g *Game) PlayMove(playerMove string) (aiMove string, err error) {
 		g.IsOver = true
 		g.Result = ResultPlayerWin
 		g.Reason = "resign"
-		return "resign", nil
+		return result, nil
 	case "rep_draw":
 		g.IsOver = true
 		g.Result = ResultDraw
 		g.Reason = "rep_draw"
-		return "rep_draw", nil
+		return result, nil
 	case "win":
 		g.IsOver = true
 		g.Result = ResultAIWin
 		g.Reason = "win"
-		return "win", nil
+		return result, nil
 	}
 
 	// AIの手を履歴に追加
 	g.Moves = append(g.Moves, aiMove)
 
-	return aiMove, nil
+	return result, nil
 }
 
 // Close は対局を終了しリソースを解放する
@@ -169,4 +181,3 @@ func (g *Game) Close() {
 		g.Engine = nil
 	}
 }
-

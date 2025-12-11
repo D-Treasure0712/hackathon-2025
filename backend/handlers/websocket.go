@@ -28,13 +28,14 @@ type ClientMessage struct {
 
 // ServerMessage はサーバーからのメッセージ形式
 type ServerMessage struct {
-	Type        string `json:"type"`
-	Move        string `json:"move,omitempty"`
-	Result      string `json:"result,omitempty"`
-	Reason      string `json:"reason,omitempty"`
-	Error       string `json:"error,omitempty"`
-	ErrorType   string `json:"errorType,omitempty"` // "illegal_move", "engine_error"等
-	GameID      string `json:"gameId,omitempty"`
+	Type       string `json:"type"`
+	Move       string `json:"move,omitempty"`
+	IsBookMove bool   `json:"isBookMove,omitempty"` // 定石からの手かどうか
+	Result     string `json:"result,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Error      string `json:"error,omitempty"`
+	ErrorType  string `json:"errorType,omitempty"` // "illegal_move", "engine_error"等
+	GameID     string `json:"gameId,omitempty"`
 }
 
 // WebSocketHandler はWebSocket接続を処理する
@@ -119,7 +120,8 @@ func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move s
 		return
 	}
 
-	aiMove, err := g.PlayMove(move)
+	log.Printf("AIの手を取得中...")
+	moveResult, err := g.PlayMove(move)
 	if err != nil {
 		log.Printf("PlayMoveエラー: %v", err)
 		// エラータイプを判定
@@ -130,6 +132,9 @@ func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move s
 		h.sendErrorWithType(conn, err.Error(), errorType)
 		return
 	}
+
+	aiMove := moveResult.Move
+	log.Printf("AI応答: %s (定石: %v)", aiMove, moveResult.IsBookMove)
 
 	// プレイヤーの手で詰んだ場合（aiMoveが"checkmate"）
 	if aiMove == "checkmate" {
@@ -152,9 +157,11 @@ func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move s
 	}
 
 	// AIの手を送信
+	log.Printf("AIの手を送信: %s (定石: %v)", aiMove, moveResult.IsBookMove)
 	h.sendMessage(conn, ServerMessage{
-		Type: "ai_move",
-		Move: aiMove,
+		Type:       "ai_move",
+		Move:       aiMove,
+		IsBookMove: moveResult.IsBookMove,
 	})
 
 	// AIの手でゲーム終了した場合（AIの手でプレイヤーが詰んだ）

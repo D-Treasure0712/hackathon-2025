@@ -34,9 +34,23 @@ func main() {
 		log.Fatalf("作業ディレクトリの取得に失敗: %v", err)
 	}
 
-	// YaneuraOuのパスを設定（backendディレクトリからの相対パス）
-	enginePath := filepath.Join(workDir, "..", "AI", "YaneuraOu-by-gcc-mac")
-	evalDir := filepath.Join(workDir, "..", "AI", "eval")
+	// YaneuraOuのパスを設定
+	// Docker環境では /AI にマウントされている
+	// ローカル環境では backendディレクトリからの相対パス
+	var enginePath, evalDir string
+
+	// Docker環境のパスを優先
+	dockerEnginePath := "/AI/YaneuraOu-by-gcc-mac"
+	dockerEvalDir := "/AI/eval"
+
+	if _, err := os.Stat(dockerEnginePath); err == nil {
+		enginePath = dockerEnginePath
+		evalDir = dockerEvalDir
+	} else {
+		// ローカル環境用のパス
+		enginePath = filepath.Join(workDir, "..", "AI", "YaneuraOu-by-gcc-mac")
+		evalDir = filepath.Join(workDir, "..", "AI", "eval")
+	}
 
 	// ファイルの存在確認
 	if _, err := os.Stat(enginePath); os.IsNotExist(err) {
