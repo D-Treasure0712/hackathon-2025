@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 // shogi.js をインポート (環境に合わせて import 文は調整してください)
 import { Shogi } from 'shogi.js';
-import { Square, Piece, PieceKind, Hand, Color } from '../types';
+import { Square, Piece, PieceKind, Hand, Color, MoveAnimationState } from '../types';
 
 // =====================================
 // 型定義・定数
@@ -35,6 +35,12 @@ export interface UseJShogiReturn {
   availableMoves: Set<string>; // 移動可能なマスのIDセット
   canUndo: boolean; // 待ったが可能かどうか
   onUndo: () => void; // 待った（一手戻す）
+  // アニメーション関連
+  moveAnimation: MoveAnimationState | null;
+  flyingPiece: { kind: PieceKind; color: Color; position: { x: number; y: number } } | null;
+  isAnimating: boolean;
+  onAnimationComplete: () => void;
+  onFlyingComplete: () => void;
 }
 
 // 待った用の履歴データ型
@@ -68,6 +74,15 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [lastMoveToSquareId, setLastMoveToSquareId] = useState<string | null>(null);
   const [availableMoves, setAvailableMoves] = useState<Set<string>>(new Set());
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]); // 待った用履歴
+
+  // =====================================
+  // アニメーション状態
+  // =====================================
+  const [moveAnimation, setMoveAnimation] = useState<MoveAnimationState | null>(null);
+  const [flyingPiece, setFlyingPiece] = useState<{ kind: PieceKind; color: Color; position: { x: number; y: number } } | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  // アニメーション中の盤面更新を遅延実行するための保留情報
+  const pendingBoardUpdateRef = useRef<(() => void) | null>(null);
 
   // 初期化
   useEffect(() => {
@@ -126,51 +141,98 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     return { color: c as Color, pieces: handPieces };
   });
 
-  // -------------------------------------------------------
-  // アクション
-  // -------------------------------------------------------
-
+  // =====================================
+  // 駒移動実行（アニメーション対応）
+  // =====================================
   const movePiece = useCallback((fromX: number, fromY: number, toX: number, toY: number, promote: boolean) => {
     const currentTurn = gameRef.current.turn;
-    // 移動先に駒があるかチェック（unmove用）
+    
+    // 移動元の駒を取得
+    const movingPiece = gameRef.current.get(fromX, fromY);
+    if (!movingPiece) return;
+    
+    // 移動先に駒があるかチェック（駒を取るかどうか）
     const capturedPiece = gameRef.current.get(toX, toY);
     const capturedKind = capturedPiece ? capturedPiece.kind : undefined;
+    const isCapture = !!capturedPiece;
 
+    // まず移動が有効か事前チェック（王手状態にならないか）
     try {
-      // shogi.js の move メソッド
       gameRef.current.move(fromX, fromY, toX, toY, promote);
-
-      // 移動後に自分の王が王手状態かチェック
       if (gameRef.current.isCheck(currentTurn)) {
-        // 王手状態なので一手戻す
+        // 無効な手なので戻す
         gameRef.current.unmove(fromX, fromY, toX, toY, promote, capturedKind);
         setShowCheckWarning(true);
         setSelectedSquareId(null);
-        setAvailableMoves(new Set()); // クリア
+        setAvailableMoves(new Set());
         setPendingMove(null);
         setWaitingForPromotion(false);
         return;
       }
-
-      // 最終手情報の更新など
-      setLastMoveToSquareId(`${toX}${toY}`);
-
-      // 履歴に記録（待った用）
-      setMoveHistory(prev => [...prev, {
-        type: 'move',
-        fromX, fromY, toX, toY, promote,
-        capturedKind
-      }]);
-
-      setVersion(v => v + 1);
+      // 有効な手なので一旦戻す（アニメーション後に再度実行）
+      gameRef.current.unmove(fromX, fromY, toX, toY, promote, capturedKind);
     } catch (e) {
-      console.error("Move error:", e);
+      console.error("Move validation error:", e);
+      return;
     }
 
+    // =====================================
+    // アニメーション開始
+    // =====================================
+    setIsAnimating(true);
     setSelectedSquareId(null);
-    setAvailableMoves(new Set()); // クリア
+    setAvailableMoves(new Set());
     setPendingMove(null);
     setWaitingForPromotion(false);
+
+    // 弾き飛ばされる駒の情報をセット（駒を取る場合）
+    if (isCapture && capturedPiece) {
+      // 位置はGameBoard側で計算するためここではsquareIdのみ
+      // 実際の位置計算はGameBoardのgetSquarePositionで行う
+      setFlyingPiece({
+        kind: capturedPiece.kind as PieceKind,
+        color: capturedPiece.color as Color,
+        // 位置は一旦ダミー（GameBoard側で上書きされる）
+        position: { x: 0, y: 0 }
+      });
+    }
+
+    // 移動アニメーション状態をセット
+    setMoveAnimation({
+      pieceKind: movingPiece.kind as PieceKind,
+      pieceColor: movingPiece.color as Color,
+      fromSquareId: `${fromX}${fromY}`,
+      toSquareId: `${toX}${toY}`,
+      // 位置は一旦ダミー（GameBoard側で上書きされる）
+      fromPosition: { x: 0, y: 0 },
+      toPosition: { x: 0, y: 0 },
+      isCapture,
+      capturedPiece: capturedPiece ? {
+        kind: capturedPiece.kind as PieceKind,
+        color: capturedPiece.color as Color
+      } : undefined,
+      phase: 'lifting'
+    });
+
+    // アニメーション完了時に実行する盤面更新を予約
+    pendingBoardUpdateRef.current = () => {
+      try {
+        // 実際に盤面を更新
+        gameRef.current.move(fromX, fromY, toX, toY, promote);
+        setLastMoveToSquareId(`${toX}${toY}`);
+        
+        // 履歴に記録（待った用）
+        setMoveHistory(prev => [...prev, {
+          type: 'move',
+          fromX, fromY, toX, toY, promote,
+          capturedKind
+        }]);
+        
+        setVersion(v => v + 1);
+      } catch (e) {
+        console.error("Move execution error:", e);
+      }
+    };
   }, []);
 
   const dropPiece = useCallback((kind: PieceKind, toX: number, toY: number) => {
@@ -448,7 +510,28 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     }
   }, [moveHistory, winner]);
 
-  const canUndo = moveHistory.length > 0 && winner === null;
+  const canUndo = moveHistory.length > 0 && winner === null && !isAnimating;
+
+  // =====================================
+  // アニメーション完了ハンドラ
+  // =====================================
+  
+  // 移動アニメーション完了時のコールバック
+  const onAnimationComplete = useCallback(() => {
+    // 保留中の盤面更新があれば実行
+    if (pendingBoardUpdateRef.current) {
+      pendingBoardUpdateRef.current();
+      pendingBoardUpdateRef.current = null;
+    }
+    // アニメーション状態をクリア
+    setMoveAnimation(null);
+    setIsAnimating(false);
+  }, []);
+
+  // 弾き飛ばしアニメーション完了時のコールバック
+  const onFlyingComplete = useCallback(() => {
+    setFlyingPiece(null);
+  }, []);
 
   return {
     squares,
@@ -472,5 +555,11 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     availableMoves,
     canUndo,
     onUndo,
+    // アニメーション関連
+    moveAnimation,
+    flyingPiece,
+    isAnimating,
+    onAnimationComplete,
+    onFlyingComplete,
   };
 }
