@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJShogi } from './hooks/useJShogi';
-import { GameBoard } from './GameBoard';
+import { GameBoard, PIECE_FOLDERS, BOARD_BACKGROUNDS } from './GameBoard';
 import { CapturedPieces } from './CapturedPieces';
 import { TurnIndicator } from './TurnIndicator';
 import { PromotionDialog } from './PromotionDialog';
@@ -12,13 +12,25 @@ import { GameOverDialog } from './GameOverDialog';
 
 /**
  * GameController コンポーネント
- * * 役割:
- * - useJShogi フックを使用してゲーム状態を管理（Container Component）
+ * 役割:
+ * - useJShogi フックを使用してゲーム状態を管理
+ * - 盤面・駒画像のランダム選択
  * - 盤面、持ち駒、情報表示、操作ボタンをレイアウトする
  */
 export const GameController: React.FC = () => {
+  // ランダムテーマ選択（クライアントサイドでのみ）
+  const [pieceFolder, setPieceFolder] = useState<string>('kanji_brown');
+  const [boardBg, setBoardBg] = useState<string>('/gameboard/tile_wood1.png');
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // クライアントサイドでランダム選択
+    setPieceFolder(PIECE_FOLDERS[Math.floor(Math.random() * PIECE_FOLDERS.length)]);
+    setBoardBg(BOARD_BACKGROUNDS[Math.floor(Math.random() * BOARD_BACKGROUNDS.length)]);
+    setIsReady(true);
+  }, []);
+
   // フックからゲーム状態と操作関数を取得
-  // ここで初期設定（playerColor: 0 = 先手視点）を行います
   const {
     squares,
     hands,
@@ -42,6 +54,15 @@ export const GameController: React.FC = () => {
     onUndo,
   } = useJShogi({ playerColor: 0 });
 
+  // 準備完了前はローディング表示
+  if (!isReady) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-xl text-zinc-500">読み込み中...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-3xl">
 
@@ -49,7 +70,7 @@ export const GameController: React.FC = () => {
       <div className="w-full">
         <CapturedPieces
           hands={hands}
-          targetPlayer={1} // 後手
+          targetPlayer={1}
           currentPlayer={currentPlayer}
           selectedHandPieceId={selectedHandPieceId}
           onHandPieceClick={onHandPieceClick}
@@ -70,13 +91,15 @@ export const GameController: React.FC = () => {
         lastMoveToSquareId={lastMoveToSquareId}
         availableMoves={availableMoves}
         onSquareClick={onSquareClick}
+        pieceFolder={pieceFolder}
+        boardBackground={boardBg}
       />
 
       {/* 4. 先手（自分）の持ち駒 */}
       <div className="w-full">
         <CapturedPieces
           hands={hands}
-          targetPlayer={0} // 先手
+          targetPlayer={0}
           currentPlayer={currentPlayer}
           selectedHandPieceId={selectedHandPieceId}
           onHandPieceClick={onHandPieceClick}
@@ -85,7 +108,6 @@ export const GameController: React.FC = () => {
 
       {/* 5. 操作ボタンエリア */}
       <div className="flex gap-4 mt-6">
-        {/* 待ったボタン */}
         <button
           onClick={onUndo}
           disabled={!canUndo}
@@ -100,7 +122,6 @@ export const GameController: React.FC = () => {
           待った
         </button>
 
-        {/* 投了ボタン */}
         <button
           onClick={onResignRequest}
           disabled={winner !== null}
@@ -147,7 +168,7 @@ export const GameController: React.FC = () => {
       {/* 9. 対局終了ダイアログ */}
       <GameOverDialog
         winner={winner}
-        playerNumber={0} // 先手視点
+        playerNumber={0}
         onRematch={resetGame}
       />
 
