@@ -41,6 +41,17 @@ export interface UseJShogiReturn {
   isAnimating: boolean;
   onAnimationComplete: () => void;
   onFlyingComplete: () => void;
+  // 成り演出関連
+  promotionAnimation: {
+    pieceKind: PieceKind;
+    color: Color;
+    squareId: string;
+  } | null;
+  onPromotionAnimationComplete: () => void;
+  // 王手カットイン関連
+  showCheckCutIn: boolean;
+  checkAttacker: Color;
+  onCheckCutInComplete: () => void;
 }
 
 // 待った用の履歴データ型
@@ -83,6 +94,17 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [isAnimating, setIsAnimating] = useState(false);
   // アニメーション中の盤面更新を遅延実行するための保留情報
   const pendingBoardUpdateRef = useRef<(() => void) | null>(null);
+
+  // 成り演出状態
+  const [promotionAnimation, setPromotionAnimation] = useState<{
+    pieceKind: PieceKind;
+    color: Color;
+    squareId: string;
+  } | null>(null);
+
+  // 王手カットイン状態
+  const [showCheckCutIn, setShowCheckCutIn] = useState(false);
+  const [checkAttacker, setCheckAttacker] = useState<Color>(0);
 
   // 初期化
   useEffect(() => {
@@ -146,11 +168,11 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   // =====================================
   const movePiece = useCallback((fromX: number, fromY: number, toX: number, toY: number, promote: boolean) => {
     const currentTurn = gameRef.current.turn;
-    
+
     // 移動元の駒を取得
     const movingPiece = gameRef.current.get(fromX, fromY);
     if (!movingPiece) return;
-    
+
     // 移動先に駒があるかチェック（駒を取るかどうか）
     const capturedPiece = gameRef.current.get(toX, toY);
     const capturedKind = capturedPiece ? capturedPiece.kind : undefined;
@@ -220,14 +242,14 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         // 実際に盤面を更新
         gameRef.current.move(fromX, fromY, toX, toY, promote);
         setLastMoveToSquareId(`${toX}${toY}`);
-        
+
         // 履歴に記録（待った用）
         setMoveHistory(prev => [...prev, {
           type: 'move',
           fromX, fromY, toX, toY, promote,
           capturedKind
         }]);
-        
+
         setVersion(v => v + 1);
       } catch (e) {
         console.error("Move execution error:", e);
@@ -515,7 +537,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   // =====================================
   // アニメーション完了ハンドラ
   // =====================================
-  
+
   // 移動アニメーション完了時のコールバック
   const onAnimationComplete = useCallback(() => {
     // 保留中の盤面更新があれば実行
@@ -526,11 +548,30 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // アニメーション状態をクリア
     setMoveAnimation(null);
     setIsAnimating(false);
+
+    // 相手に王手をかけたかチェック
+    const opponent = gameRef.current.turn; // 手番は既に変わっている
+    if (gameRef.current.isCheck(opponent)) {
+      // 王手！カットインを表示
+      const attacker = opponent === 0 ? 1 : 0; // 王手をかけたのは前の手番のプレイヤー
+      setCheckAttacker(attacker as Color);
+      setShowCheckCutIn(true);
+    }
   }, []);
 
   // 弾き飛ばしアニメーション完了時のコールバック
   const onFlyingComplete = useCallback(() => {
     setFlyingPiece(null);
+  }, []);
+
+  // 成り演出完了コールバック
+  const onPromotionAnimationComplete = useCallback(() => {
+    setPromotionAnimation(null);
+  }, []);
+
+  // 王手カットイン完了コールバック
+  const onCheckCutInComplete = useCallback(() => {
+    setShowCheckCutIn(false);
   }, []);
 
   return {
@@ -561,5 +602,12 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     isAnimating,
     onAnimationComplete,
     onFlyingComplete,
+    // 成り演出関連
+    promotionAnimation,
+    onPromotionAnimationComplete,
+    // 王手カットイン関連
+    showCheckCutIn,
+    checkAttacker,
+    onCheckCutInComplete,
   };
 }

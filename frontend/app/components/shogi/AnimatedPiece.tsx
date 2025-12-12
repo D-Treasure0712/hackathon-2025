@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { PieceKind, Color, MoveAnimationState } from './types';
 
 // 駒画像パスを取得する関数
@@ -20,8 +21,8 @@ interface AnimatedPieceProps {
 }
 
 /**
- * シンプルで軽量な駒移動アニメーション
- * CSSアニメーションのみで制御、Reactの再レンダリングを最小限に
+ * framer-motion を使用したスムーズなスライドアニメーション
+ * シンプルで高速な直線移動
  */
 export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
   animationState,
@@ -33,41 +34,27 @@ export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
   const { fromPosition, toPosition, isCapture } = animationState;
   const onCompleteRef = useRef(onAnimationComplete);
   const onLandedRef = useRef(onLanded);
-  
+
   onCompleteRef.current = onAnimationComplete;
   onLandedRef.current = onLanded;
 
   // 移動量を計算
   const moveX = toPosition.x - fromPosition.x;
   const moveY = toPosition.y - fromPosition.y;
-  
-  // アニメーション時間（短めでスムーズに）
-  const duration = isCapture ? 0.9 : 0.8;
 
-  // タイマーをセットアップ
+  // 着地コールバック（アニメーションの80%時点）
   useEffect(() => {
-    // 着地タイミング（75%時点）
-    const landingTime = duration * 0.75 * 1000;
     const landTimer = setTimeout(() => {
       if (onLandedRef.current) {
         onLandedRef.current();
       }
-    }, landingTime);
+    }, 150);
 
-    // アニメーション完了
-    const completeTimer = setTimeout(() => {
-      onCompleteRef.current();
-    }, duration * 1000 + 30);
-
-    return () => {
-      clearTimeout(landTimer);
-      clearTimeout(completeTimer);
-    };
-  }, [duration]);
+    return () => clearTimeout(landTimer);
+  }, []);
 
   return (
-    <div
-      className="piece-moving"
+    <motion.div
       style={{
         position: 'absolute',
         left: fromPosition.x,
@@ -76,11 +63,27 @@ export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
         height: squareSize,
         pointerEvents: 'none',
         zIndex: 50,
-        filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35))',
-        '--move-x': `${moveX}px`,
-        '--move-y': `${moveY}px`,
-        '--move-duration': `${duration}s`,
-      } as React.CSSProperties}
+        filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))',
+      }}
+      initial={{
+        x: 0,
+        y: 0,
+        scale: 1,
+      }}
+      animate={{
+        x: moveX,
+        y: moveY,
+        scale: 1.05, // 少し大きくなる
+      }}
+      transition={{
+        type: 'spring',
+        stiffness: 500,
+        damping: 35,
+        mass: 0.6,
+      }}
+      onAnimationComplete={() => {
+        onCompleteRef.current();
+      }}
     >
       <Image
         src={getPieceImagePath(pieceFolder, animationState.pieceKind, animationState.pieceColor)}
@@ -90,7 +93,7 @@ export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
         draggable={false}
         priority
       />
-    </div>
+    </motion.div>
   );
 };
 
