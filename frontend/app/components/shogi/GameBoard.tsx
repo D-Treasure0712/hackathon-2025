@@ -1,31 +1,51 @@
 'use client';
 
-import React from 'react';
-import { Square, PieceKind, Color } from './types'; // typesからインポート
+import React, { useMemo } from 'react';
+import Image from 'next/image';
+import { Square, PieceKind, Color } from './types';
 
 // =====================================
-// 駒の表示名マッピング (shogi.js対応)
+// 駒画像のフォルダとボード画像の定義（エクスポート）
 // =====================================
 
-const PIECE_DISPLAY: Record<PieceKind, string> = {
-  'FU': '歩',
-  'KY': '香',
-  'KE': '桂',
-  'GI': '銀',
-  'KI': '金',
-  'OU': '王', // ライブラリによっては玉/王の区別がない場合がある。一旦「王」で統一か、後手の時だけ「玉」にするロジックを組む
-  'HI': '飛',
-  'KA': '角',
-  'TO': 'と',
-  'NY': '杏',
-  'NK': '圭',
-  'NG': '全',
-  'RY': '龍',
-  'UM': '馬',
+// 駒画像フォルダ（3つからランダム選択用）
+export const PIECE_FOLDERS = [
+  'kanji_brown',
+  'kanji_light',
+  'kanji_light_3D_OTB',
+];
+
+// ボード背景画像（7つからランダム選択用）
+export const BOARD_BACKGROUNDS = [
+  '/gameboard/tile_wood1.png',
+  '/gameboard/tile_wood2.png',
+  '/gameboard/tile_wood3.png',
+  '/gameboard/tile_wood4.png',
+  '/gameboard/tile_wood5.png',
+  '/gameboard/tile_wood6.png',
+  '/gameboard/tile_stone.png',
+];
+
+// 駒の種類から画像ファイル名へのマッピング
+// SVGファイル命名規則: 0XX.svg(上向き/先手用), 1XX.svg(下向き/後手用)
+const getPieceImagePath = (folder: string, kind: PieceKind, color: Color): string => {
+  // color: 0 = Black/Sente(先手/下側), 1 = White/Gote(後手/上側)
+  // 画像ファイル: 0 = 上向き(先手用), 1 = 下向き(後手用)
+  const prefix = color === 0 ? '0' : '1';
+  
+  // 後手の王は「玉」(GY)の画像を使用
+  const pieceKind = (kind === 'OU' && color === 1) ? 'GY' : kind;
+  
+  return `/pieces/${folder}/${prefix}${pieceKind}.svg`;
 };
 
-// 成り駒かどうか
-const PROMOTED_TYPES: PieceKind[] = ['TO', 'NY', 'NK', 'NG', 'RY', 'UM'];
+// 駒の表示名（フォールバック用）
+const PIECE_DISPLAY: Record<PieceKind, string> = {
+  'FU': '歩', 'KY': '香', 'KE': '桂', 'GI': '銀',
+  'KI': '金', 'OU': '王', 'HI': '飛', 'KA': '角',
+  'TO': 'と', 'NY': '杏', 'NK': '圭', 'NG': '全',
+  'RY': '龍', 'UM': '馬',
+};
 
 // =====================================
 // Props定義
@@ -33,11 +53,14 @@ const PROMOTED_TYPES: PieceKind[] = ['TO', 'NY', 'NK', 'NG', 'RY', 'UM'];
 
 export interface GameBoardProps {
   squares: Square[];
-  currentPlayer: Color; // PlayerNumber(1|2) -> Color(0|1)
+  currentPlayer: Color;
   selectedSquareId: string | null;
   lastMoveToSquareId: string | null;
-  availableMoves: Set<string>; // 移動可能なマスのIDセット
+  availableMoves: Set<string>;
   onSquareClick: (squareId: string) => void;
+  // テーマ設定（親から渡される）
+  pieceFolder: string;
+  boardBackground: string;
 }
 
 // =====================================
@@ -51,41 +74,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   lastMoveToSquareId,
   availableMoves,
   onSquareClick,
+  pieceFolder,
+  boardBackground,
 }) => {
-  // 盤面を2次元配列に変換（y: 0-8, x: 0-8）
-  const board: (Square | null)[][] = Array(9).fill(null).map(() => Array(9).fill(null));
-  squares.forEach(sq => {
-    if (sq.y >= 0 && sq.y < 9 && sq.x >= 0 && sq.x < 9) {
-      board[sq.y][sq.x] = sq;
-    }
-  });
+  // 盤面を2次元配列に変換
+  const board: (Square | null)[][] = useMemo(() => {
+    const b: (Square | null)[][] = Array(9).fill(null).map(() => Array(9).fill(null));
+    squares.forEach(sq => {
+      if (sq.y >= 0 && sq.y < 9 && sq.x >= 0 && sq.x < 9) {
+        b[sq.y][sq.x] = sq;
+      }
+    });
+    return b;
+  }, [squares]);
 
   return (
     <div className="flex flex-col items-center">
+      {/* 盤面コンテナ */}
       <div
-        className="
-          aspect-square
-          bg-amber-100 dark:bg-amber-900
-          border-2 border-amber-800 dark:border-amber-600
-          p-1
-        "
+        className="aspect-square border-2 border-black p-0.5"
         style={{
           width: 'min(85vw, 60vh)',
           maxWidth: '100%',
+          backgroundImage: `url(${boardBackground})`,
+          backgroundSize: 'cover',
         }}
       >
-        <div className="grid grid-cols-9 grid-rows-9 w-full h-full gap-px bg-amber-800 dark:bg-amber-600">
+        {/* 9x9グリッド */}
+        <div className="grid grid-cols-9 grid-rows-9 w-full h-full gap-px bg-black">
           {board.map((row, y) =>
             row.map((square, x) => {
-              if (!square) return <div key={`${y}-${x}`} className="bg-amber-100" />;
+              if (!square) {
+                return (
+                  <div
+                    key={`${y}-${x}`}
+                    style={{
+                      backgroundImage: `url(${boardBackground})`,
+                      backgroundSize: '900% 900%',
+                      backgroundPosition: `${x * 12.5}% ${y * 12.5}%`,
+                    }}
+                  />
+                );
+              }
 
               const piece = square.piece;
               const isSelected = selectedSquareId === square.id;
               const isLastMove = lastMoveToSquareId === square.id;
-              const isAvailable = availableMoves.has(square.id); // 移動可能範囲かどうか
+              const isAvailable = availableMoves.has(square.id);
               const isCurrentPlayerPiece = piece && piece.color === currentPlayer;
-              const isPromoted = piece && PROMOTED_TYPES.includes(piece.kind);
-              const isGote = piece && piece.color === 1; // 1 = White/Gote
 
               return (
                 <button
@@ -94,40 +130,44 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   className={`
                     flex items-center justify-center
                     aspect-square
-                    text-sm sm:text-base md:text-lg lg:text-xl
-                    font-bold
-                    transition-colors
                     relative
-                    ${isSelected
-                      ? 'bg-blue-300 dark:bg-blue-600'
-                      : isLastMove
-                        ? 'bg-yellow-200 dark:bg-yellow-700'
-                        : isAvailable
-                          ? 'bg-green-100 dark:bg-green-900/40' // 移動可能マスの背景
-                          : 'bg-amber-100 dark:bg-amber-200'
-                    }
-                    ${isCurrentPlayerPiece ? 'cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-300' : 'cursor-pointer'}
+                    transition-colors
+                    ${isCurrentPlayerPiece ? 'cursor-pointer' : 'cursor-pointer'}
                   `}
+                  style={{
+                    backgroundImage: `url(${boardBackground})`,
+                    backgroundSize: '900% 900%',
+                    backgroundPosition: `${x * 12.5}% ${y * 12.5}%`,
+                  }}
                   data-square-id={square.id}
                 >
+                  {/* 選択状態のオーバーレイ */}
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-blue-400/50" />
+                  )}
+                  {/* 最後の移動先のオーバーレイ */}
+                  {isLastMove && !isSelected && (
+                    <div className="absolute inset-0 bg-yellow-400/30" />
+                  )}
                   {/* 移動可能マーク */}
                   {isAvailable && !piece && (
-                    <div className="absolute w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500/50" />
+                    <div className="absolute w-3 h-3 rounded-full bg-green-500/60" />
                   )}
                   {isAvailable && piece && (
-                    <div className="absolute inset-0 border-2 border-green-500/50 rounded-sm" />
+                    <div className="absolute inset-0 border-2 border-green-500/60 rounded-sm" />
                   )}
 
+                  {/* 駒画像 */}
                   {piece && (
-                    <span
-                      className={`
-                        ${isPromoted ? 'text-red-600' : 'text-zinc-900'}
-                        ${isGote ? 'rotate-180' : ''}
-                        inline-block
-                      `}
-                    >
-                      {PIECE_DISPLAY[piece.kind]}
-                    </span>
+                    <Image
+                      src={getPieceImagePath(pieceFolder, piece.kind, piece.color)}
+                      alt={PIECE_DISPLAY[piece.kind]}
+                      width={60}
+                      height={60}
+                      className="w-full h-full object-contain relative z-10"
+                      draggable={false}
+                      priority
+                    />
                   )}
                 </button>
               );
