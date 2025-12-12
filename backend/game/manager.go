@@ -24,7 +24,7 @@ type Game struct {
 	Moves  []string // USI形式の手履歴
 	Engine *engine.USIEngine
 	Board  *ShogiBoard // gshogiによる盤面管理
-	IsOver bool
+	IsOver bool // 対局終了フラグ
 	Result GameResult
 	Reason string // 終了理由: "resign", "checkmate", "rep_draw", "win"
 	BTime  int    // 先手残り時間（ミリ秒）
@@ -51,8 +51,8 @@ func NewGameManager(enginePath, evalDir string) *GameManager {
 
 // NewGame は新しい対局を開始する
 func (gm *GameManager) NewGame(gameID string) (*Game, error) {
-	gm.mu.Lock()
-	defer gm.mu.Unlock()
+	gm.mu.Lock() // 排他制御
+	defer gm.mu.Unlock() // 関数終了時にロックを解放
 
 	// 既存のゲームがあれば終了
 	if existingGame, exists := gm.games[gameID]; exists {
@@ -60,7 +60,7 @@ func (gm *GameManager) NewGame(gameID string) (*Game, error) {
 		delete(gm.games, gameID)
 	}
 
-	// エンジン起動
+	// 新しいUSIエンジンインスタンスを作成する
 	eng, err := engine.NewUSIEngine(gm.enginePath, gm.evalDir)
 	if err != nil {
 		return nil, fmt.Errorf("エンジン起動に失敗: %w", err)
@@ -76,13 +76,16 @@ func (gm *GameManager) NewGame(gameID string) (*Game, error) {
 		ID:     gameID,
 		Moves:  []string{},
 		Engine: eng,
-		Board:  NewShogiBoard(),
+		Board:  NewShogiBoard(), // gshogi.NewBoard()で初期化したやつが入る
 		IsOver: false,
 		Result: ResultNone,
 		BTime:  60000, // デフォルト60秒
-		WTime:  60000,
+		WTime:  60000, // デフォルト60秒
 	}
 
+	// gm.games は map[string]*Game（ゲームID → Gameへのポインタ）
+	// gm.games[gameID] は「そのIDの場所（箱）」を指す
+	// = game で、その箱に game（対局） を入れる
 	gm.games[gameID] = game
 	return game, nil
 }

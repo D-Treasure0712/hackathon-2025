@@ -14,23 +14,24 @@ import (
 
 // USIEngine はUSIプロトコルを使用する将棋エンジンを管理する構造体
 type USIEngine struct {
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	stdout  *bufio.Scanner
-	mu      sync.Mutex
-	bookDir string // 定石ファイルのディレクトリ
+	cmd     *exec.Cmd      // 外部コマンド（AIエンジン）を実行するための司令塔です。
+	stdin   io.WriteCloser // AIへの「入力パイプ」。こちらからAIに命令を書き込む場所です。
+	stdout  *bufio.Scanner // AIからの「出力」を受け取るスキャナー。AIの返事を1行ずつ読み取ります。
+	mu      sync.Mutex     // 排他制御。複数の命令が同時に走って混乱しないようにロックをかけます。
+	bookDir string         // 定石（じょうせき）ファイルが置いてある場所のパスです。
 }
 
 // NewUSIEngine は新しいUSIエンジンインスタンスを作成する
 // enginePath: YaneuraOu-by-gcc-macへのパス
 // evalDir: 評価関数（nn.bin）があるディレクトリへのパス
 func NewUSIEngine(enginePath, evalDir string) (*USIEngine, error) {
-	// 絶対パスに変換
+	// 絶対パスに変換（AI/YaneuraOu-by-gcc-mac）
 	absEnginePath, err := filepath.Abs(enginePath)
 	if err != nil {
 		return nil, fmt.Errorf("エンジンパスの解決に失敗: %w", err)
 	}
 
+	// 絶対パスに変換（AI/eval）
 	absEvalDir, err := filepath.Abs(evalDir)
 	if err != nil {
 		return nil, fmt.Errorf("評価関数ディレクトリパスの解決に失敗: %w", err)
@@ -39,21 +40,26 @@ func NewUSIEngine(enginePath, evalDir string) (*USIEngine, error) {
 	// 定石ファイルのディレクトリ（evalDirの親ディレクトリにbookがある想定）
 	bookDir := filepath.Join(filepath.Dir(absEvalDir), "book")
 
-	// エンジンの作業ディレクトリを評価関数のあるディレクトリに設定
+	// exec.Commandで、指定されたパスにある将棋エンジンを実行する準備をします。
 	cmd := exec.Command(absEnginePath)
+	// AIが評価関数ファイル（nn.binなど）を読み込めるよう、作業ディレクトリを設定します。
 	cmd.Dir = absEvalDir
+	// 環境変数としてもディレクトリを教えてあげます（エンジンによっては必要）。
 	cmd.Env = append(os.Environ(), fmt.Sprintf("EVAL_DIR=%s", absEvalDir))
 
+	// AIへの入力用パイプ（stdin）を作成します。これがないと命令を送れません。
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdinパイプの作成に失敗: %w", err)
 	}
 
+	// AIからの出力用パイプ（stdout）を作成します。これがないと返事が聞けません。
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdoutパイプの作成に失敗: %w", err)
 	}
 
+	// ここで実際にエンジンを起動（スタート）します！
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("エンジンの起動に失敗: %w", err)
 	}
@@ -65,14 +71,18 @@ func NewUSIEngine(enginePath, evalDir string) (*USIEngine, error) {
 		bookDir: bookDir,
 	}
 
+	// 準備できた部品を構造体にまとめて返します。
 	return engine, nil
 }
 
 // SendCommand はエンジンにコマンドを送信する
 func (e *USIEngine) SendCommand(command string) error {
+	// 排他制御: 同時に複数のコマンドが送られないようにする
 	e.mu.Lock()
-	defer e.mu.Unlock()
+	defer e.mu.Unlock() // 関数終了時にロックを解放
 
+	// 与えられた引数を文字列化して、末尾に改行を入れてエンジンに送信します。
+	// e.stdinにcommandを書き込む
 	_, err := fmt.Fprintln(e.stdin, command)
 	if err != nil {
 		return fmt.Errorf("コマンド送信に失敗: %w", err)
