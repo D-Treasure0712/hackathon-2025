@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { PieceKind, Color, MoveAnimationState } from './types';
 
@@ -16,113 +16,71 @@ interface AnimatedPieceProps {
   pieceFolder: string;
   squareSize: number;
   onAnimationComplete: () => void;
+  onLanded?: () => void;
 }
 
 /**
- * シンプルなアニメーション方式
- * 全てtransitionで制御し、CSSアニメーションを使用しない
+ * シンプルで軽量な駒移動アニメーション
+ * CSSアニメーションのみで制御、Reactの再レンダリングを最小限に
  */
 export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
   animationState,
   pieceFolder,
   squareSize,
   onAnimationComplete,
+  onLanded,
 }) => {
-  // アニメーション状態: 'start' -> 'lifted' -> 'moved' -> 'landed'
-  const [stage, setStage] = useState<'start' | 'lifted' | 'moved' | 'landed'>('start');
-  
-  // コールバックをrefに保存して依存配列問題を回避
+  const { fromPosition, toPosition, isCapture } = animationState;
   const onCompleteRef = useRef(onAnimationComplete);
+  const onLandedRef = useRef(onLanded);
+  
   onCompleteRef.current = onAnimationComplete;
+  onLandedRef.current = onLanded;
 
-  // 各ステージでのスタイルを定義
-  const getTransformStyle = () => {
-    switch (stage) {
-      case 'start':
-        return {
-          transform: 'scale(1) translateY(0)',
-          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))',
-        };
-      case 'lifted':
-        return {
-          transform: 'scale(1.15) translateY(-12px)',
-          filter: 'drop-shadow(0 12px 20px rgba(0, 0, 0, 0.35))',
-        };
-      case 'moved':
-        return {
-          transform: 'scale(1.15) translateY(-12px)',
-          filter: 'drop-shadow(0 12px 20px rgba(0, 0, 0, 0.35))',
-        };
-      case 'landed':
-        return {
-          transform: 'scale(1) translateY(0)',
-          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))',
-        };
-    }
-  };
+  // 移動量を計算
+  const moveX = toPosition.x - fromPosition.x;
+  const moveY = toPosition.y - fromPosition.y;
+  
+  // アニメーション時間（短めでスムーズに）
+  const duration = isCapture ? 0.9 : 0.8;
 
-  // 位置を計算
-  const getPosition = () => {
-    if (stage === 'start' || stage === 'lifted') {
-      return animationState.fromPosition;
-    }
-    return animationState.toPosition;
-  };
-
-  // アニメーションシーケンス（マウント時に1回だけ実行）
+  // タイマーをセットアップ
   useEffect(() => {
-    const moveTime = animationState.isCapture ? 600 : 400;
-    const totalTime = animationState.isCapture ? 1500 : 1000;
-
-    // Stage 1: 浮き上がり（即座に開始）
-    const liftTimer = setTimeout(() => {
-      setStage('lifted');
-    }, 10);
-
-    // Stage 2: 移動開始（200ms後）
-    const moveTimer = setTimeout(() => {
-      setStage('moved');
-    }, 200);
-
-    // Stage 3: 着地（移動完了後）
+    // 着地タイミング（75%時点）
+    const landingTime = duration * 0.75 * 1000;
     const landTimer = setTimeout(() => {
-      setStage('landed');
-    }, 200 + moveTime);
+      if (onLandedRef.current) {
+        onLandedRef.current();
+      }
+    }, landingTime);
 
-    // アニメーション完了（refからコールバックを呼び出し）
+    // アニメーション完了
     const completeTimer = setTimeout(() => {
       onCompleteRef.current();
-    }, totalTime);
+    }, duration * 1000 + 30);
 
     return () => {
-      clearTimeout(liftTimer);
-      clearTimeout(moveTimer);
       clearTimeout(landTimer);
       clearTimeout(completeTimer);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 空の依存配列でマウント時のみ実行
-
-  const position = getPosition();
-  const transformStyle = getTransformStyle();
-  const moveTime = animationState.isCapture ? 600 : 400;
+  }, [duration]);
 
   return (
     <div
+      className="piece-moving"
       style={{
         position: 'absolute',
+        left: fromPosition.x,
+        top: fromPosition.y,
         width: squareSize,
         height: squareSize,
-        left: position.x,
-        top: position.y,
         pointerEvents: 'none',
         zIndex: 50,
-        // 全てをtransitionで制御
-        transition: stage === 'moved' || stage === 'landed'
-          ? `left ${moveTime}ms ease-out, top ${moveTime}ms ease-out, transform 200ms ease-out, filter 200ms ease-out`
-          : 'transform 200ms ease-out, filter 200ms ease-out',
-        ...transformStyle,
-      }}
+        filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35))',
+        '--move-x': `${moveX}px`,
+        '--move-y': `${moveY}px`,
+        '--move-duration': `${duration}s`,
+      } as React.CSSProperties}
     >
       <Image
         src={getPieceImagePath(pieceFolder, animationState.pieceKind, animationState.pieceColor)}
@@ -130,6 +88,7 @@ export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
         fill
         className="object-contain"
         draggable={false}
+        priority
       />
     </div>
   );
