@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJShogi } from './hooks/useJShogi';
-import { GameBoard } from './GameBoard';
+import { GameBoard, PIECE_FOLDERS, BOARD_BACKGROUNDS } from './GameBoard';
 import { CapturedPieces } from './CapturedPieces';
 import { TurnIndicator } from './TurnIndicator';
 import { PromotionDialog } from './PromotionDialog';
@@ -18,6 +18,17 @@ import { GameOverDialog } from './GameOverDialog';
  * - AI対局モードでWebSocket通信を管理
  */
 export const GameController: React.FC = () => {
+  // ランダムテーマ選択（クライアントサイドでのみ）
+  const [pieceFolder, setPieceFolder] = useState<string>('kanji_brown');
+  const [boardBg, setBoardBg] = useState<string>('/gameboard/tile_wood1.png');
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // クライアントサイドでランダム選択
+    setPieceFolder(PIECE_FOLDERS[Math.floor(Math.random() * PIECE_FOLDERS.length)]);
+    setBoardBg(BOARD_BACKGROUNDS[Math.floor(Math.random() * BOARD_BACKGROUNDS.length)]);
+    setIsReady(true);
+  }, []);
   // フックからゲーム状態と操作関数を取得
   // ここで初期設定（playerColor: 0 = 先手視点, useAI: true = AI対局モード）を行います
   const {
@@ -50,6 +61,15 @@ export const GameController: React.FC = () => {
     wsError,
     connect,
   } = useJShogi({ playerColor: 0, useAI: true });
+
+  // 準備完了前はローディング表示
+  if (!isReady) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-xl text-zinc-500">読み込み中...</div>
+      </div>
+    );
+  }
 
   // ステータス表示のテキスト
   const getStatusText = () => {
@@ -154,6 +174,8 @@ export const GameController: React.FC = () => {
           lastMoveToSquareId={lastMoveToSquareId}
           availableMoves={availableMoves}
           onSquareClick={onSquareClick}
+          pieceFolder={pieceFolder}
+          boardBackground={boardBg}
         />
         {/* AI思考中オーバーレイ */}
         {isAIThinking && (
