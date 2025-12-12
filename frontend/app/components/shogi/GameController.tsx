@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useJShogi } from './hooks/useJShogi';
 import { GameBoard, PIECE_FOLDERS, BOARD_BACKGROUNDS } from './GameBoard';
 import { CapturedPieces } from './CapturedPieces';
@@ -9,6 +10,7 @@ import { PromotionDialog } from './PromotionDialog';
 import { CheckWarningDialog } from './CheckWarningDialog';
 import { ResignConfirmDialog } from './ResignConfirmDialog';
 import { GameOverDialog } from './GameOverDialog';
+import { CheckCutIn } from './CheckCutIn';
 
 /**
  * GameController コンポーネント
@@ -57,6 +59,10 @@ export const GameController: React.FC = () => {
     flyingPiece,
     onAnimationComplete,
     onFlyingComplete,
+    // 王手カットイン関連
+    showCheckCutIn,
+    checkAttacker,
+    onCheckCutInComplete,
   } = useJShogi({ playerColor: 0 });
 
   // 準備完了前はローディング表示
@@ -181,6 +187,16 @@ export const GameController: React.FC = () => {
         playerNumber={0}
         onRematch={resetGame}
       />
+
+      {/* 10. 王手カットインアニメーション */}
+      <AnimatePresence>
+        {showCheckCutIn && (
+          <CheckCutIn
+            attackerColor={checkAttacker}
+            onComplete={onCheckCutInComplete}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );

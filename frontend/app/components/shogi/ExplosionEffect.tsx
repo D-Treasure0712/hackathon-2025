@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ExplosionEffectProps {
   position: { x: number; y: number };
@@ -10,8 +11,8 @@ interface ExplosionEffectProps {
 }
 
 /**
- * 爆発エフェクト + ひび割れ演出
- * 生成した画像を使用した派手なエフェクト
+ * framer-motion を使用した派手な爆発エフェクト
+ * 衝撃波リング + フラッシュ + パーティクル
  */
 export const ExplosionEffect: React.FC<ExplosionEffectProps> = ({
   position,
@@ -24,16 +25,40 @@ export const ExplosionEffect: React.FC<ExplosionEffectProps> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       onCompleteRef.current();
-    }, 800);
+    }, 600);
     return () => clearTimeout(timer);
   }, []);
 
   const centerX = position.x + squareSize / 2;
   const centerY = position.y + squareSize / 2;
-  
-  // エフェクトのサイズ
-  const explosionSize = squareSize * 2.5;
-  const crackSize = squareSize * 3;
+
+  // パーティクルの生成（ランダム方向）
+  const particles = useMemo(() => {
+    return Array.from({ length: 8 }, (_, i) => {
+      const angle = (i / 8) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const distance = 60 + Math.random() * 80;
+      return {
+        x: Math.cos(angle) * distance,
+        y: Math.sin(angle) * distance,
+        size: 4 + Math.random() * 6,
+        delay: Math.random() * 0.05,
+      };
+    });
+  }, []);
+
+  // スパークの生成
+  const sparks = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const angle = (i / 12) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+      const distance = 80 + Math.random() * 100;
+      return {
+        x: Math.cos(angle) * distance,
+        y: Math.sin(angle) * distance,
+        size: 2 + Math.random() * 3,
+        delay: Math.random() * 0.08,
+      };
+    });
+  }, []);
 
   return (
     <div
@@ -48,18 +73,25 @@ export const ExplosionEffect: React.FC<ExplosionEffectProps> = ({
         overflow: 'visible',
       }}
     >
-      {/* ひび割れエフェクト（SVG） */}
-      <div
-        className="crack-effect"
+      {/* ひび割れエフェクト */}
+      <motion.div
         style={{
           position: 'absolute',
-          left: centerX - crackSize / 2,
-          top: centerY - crackSize / 2,
-          width: crackSize,
-          height: crackSize,
-          // 乗算合成できれいに黒だけ残す
+          left: centerX - squareSize * 1.8,
+          top: centerY - squareSize * 1.8,
+          width: squareSize * 3.6,
+          height: squareSize * 3.6,
           mixBlendMode: 'multiply',
-          opacity: 0.7,
+        }}
+        initial={{ scale: 0.4, opacity: 0 }}
+        animate={{
+          scale: [0.4, 1, 1.05],
+          opacity: [0, 0.8, 0],
+        }}
+        transition={{
+          duration: 0.6,
+          times: [0, 0.15, 1],
+          ease: 'easeOut',
         }}
       >
         <Image
@@ -70,76 +102,158 @@ export const ExplosionEffect: React.FC<ExplosionEffectProps> = ({
           draggable={false}
           unoptimized
         />
-      </div>
+      </motion.div>
 
-      {/* 爆発エフェクト（CSSのみで描画） - 画像不使用で枠問題を解決 */}
-      <div
-        className="explosion-image"
+      {/* メイン爆発フラッシュ */}
+      <motion.div
         style={{
           position: 'absolute',
-          left: centerX - explosionSize / 2,
-          top: centerY - explosionSize / 2,
-          width: explosionSize,
-          height: explosionSize,
+          left: centerX - squareSize * 2,
+          top: centerY - squareSize * 2,
+          width: squareSize * 4,
+          height: squareSize * 4,
           borderRadius: '50%',
-          mixBlendMode: 'screen', // 光の合成
-          // コア、内炎、外炎の3層グラデーション
           background: `
-            radial-gradient(circle, rgba(255,255,200,1) 0%, rgba(255,200,50,0.8) 25%, rgba(255,50,0,0) 60%),
-            radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,100,0,0) 40%)
+            radial-gradient(circle, rgba(255,255,220,1) 0%, rgba(255,220,100,0.9) 20%, rgba(255,100,0,0.6) 50%, transparent 70%)
           `,
-          // 強烈な発光表現
-          boxShadow: `
-            0 0 20px 10px rgba(255, 100, 0, 0.4),
-            0 0 40px 20px rgba(255, 50, 0, 0.2),
-            inset 0 0 30px 15px rgba(255, 200, 50, 0.6)
-          `,
-          filter: 'contrast(1.2) brightness(1.3)',
+          mixBlendMode: 'screen',
+        }}
+        initial={{ scale: 0, opacity: 1 }}
+        animate={{
+          scale: [0, 1.3, 1.5],
+          opacity: [1, 0.95, 0],
+        }}
+        transition={{
+          duration: 0.35,
+          ease: [0.16, 1, 0.3, 1], // easeOutExpo
         }}
       />
 
-      {/* 衝撃波リング1（細く鋭く） */}
-      <div
-        className="explosion-ring"
+      {/* 衝撃波リング1 */}
+      <motion.div
         style={{
           position: 'absolute',
-          left: centerX - squareSize / 2,
-          top: centerY - squareSize / 2,
+          left: centerX - squareSize * 0.5,
+          top: centerY - squareSize * 0.5,
           width: squareSize,
           height: squareSize,
           borderRadius: '50%',
-          border: '2px solid rgba(255, 255, 100, 0.8)', // 枠を目立たなく細く
-          boxShadow: '0 0 15px rgba(255, 150, 50, 0.6)',
+          border: '3px solid rgba(255, 200, 100, 0.9)',
+          boxShadow: '0 0 20px rgba(255, 150, 50, 0.8), inset 0 0 10px rgba(255, 200, 100, 0.4)',
+        }}
+        initial={{ scale: 0, opacity: 1 }}
+        animate={{
+          scale: 6,
+          opacity: 0,
+        }}
+        transition={{
+          duration: 0.35,
+          ease: [0.22, 1, 0.36, 1],
         }}
       />
 
       {/* 衝撃波リング2（時間差） */}
-      <div
-        className="explosion-ring-2"
+      <motion.div
         style={{
           position: 'absolute',
-          left: centerX - squareSize / 2,
-          top: centerY - squareSize / 2,
+          left: centerX - squareSize * 0.5,
+          top: centerY - squareSize * 0.5,
           width: squareSize,
           height: squareSize,
           borderRadius: '50%',
-          border: '1px solid rgba(255, 100, 50, 0.6)',
-          boxShadow: '0 0 10px rgba(255, 100, 50, 0.4)',
+          border: '2px solid rgba(255, 100, 50, 0.7)',
+          boxShadow: '0 0 15px rgba(255, 100, 50, 0.5)',
+        }}
+        initial={{ scale: 0, opacity: 0.8 }}
+        animate={{
+          scale: 8,
+          opacity: 0,
+        }}
+        transition={{
+          duration: 0.4,
+          delay: 0.03,
+          ease: [0.22, 1, 0.36, 1],
         }}
       />
 
+      {/* パーティクル（火花） */}
+      {particles.map((particle, i) => (
+        <motion.div
+          key={`particle-${i}`}
+          style={{
+            position: 'absolute',
+            left: centerX - particle.size / 2,
+            top: centerY - particle.size / 2,
+            width: particle.size,
+            height: particle.size,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, #fff 0%, #ffa500 50%, #ff4500 100%)',
+            boxShadow: '0 0 6px rgba(255, 150, 50, 0.8)',
+          }}
+          initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+          animate={{
+            x: particle.x,
+            y: particle.y,
+            scale: 0,
+            opacity: 0,
+          }}
+          transition={{
+            duration: 0.4,
+            delay: particle.delay,
+            ease: 'easeOut',
+          }}
+        />
+      ))}
+
+      {/* スパーク（細い光線） */}
+      {sparks.map((spark, i) => (
+        <motion.div
+          key={`spark-${i}`}
+          style={{
+            position: 'absolute',
+            left: centerX - spark.size / 2,
+            top: centerY - spark.size / 2,
+            width: spark.size,
+            height: spark.size,
+            borderRadius: '50%',
+            background: '#ffffcc',
+            boxShadow: '0 0 4px #ffff00',
+          }}
+          initial={{ x: 0, y: 0, scale: 1.5, opacity: 1 }}
+          animate={{
+            x: spark.x,
+            y: spark.y,
+            scale: 0,
+            opacity: 0,
+          }}
+          transition={{
+            duration: 0.3,
+            delay: spark.delay,
+            ease: 'easeOut',
+          }}
+        />
+      ))}
+
       {/* 中央フラッシュ */}
-      <div
-        className="explosion-flash"
+      <motion.div
         style={{
           position: 'absolute',
-          left: centerX - squareSize * 0.4,
-          top: centerY - squareSize * 0.4,
-          width: squareSize * 0.8,
-          height: squareSize * 0.8,
+          left: centerX - squareSize * 0.6,
+          top: centerY - squareSize * 0.6,
+          width: squareSize * 1.2,
+          height: squareSize * 1.2,
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 70%)',
           mixBlendMode: 'screen',
+        }}
+        initial={{ scale: 0.3, opacity: 1 }}
+        animate={{
+          scale: [0.3, 2, 3],
+          opacity: [1, 0.8, 0],
+        }}
+        transition={{
+          duration: 0.3,
+          ease: [0.16, 1, 0.3, 1],
         }}
       />
     </div>
