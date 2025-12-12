@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Square, PieceKind, Color, MoveAnimationState } from './types';
 import { AnimatedPiece } from './AnimatedPiece';
 import { FlyingPiece } from './FlyingPiece';
+import { ExplosionEffect } from './ExplosionEffect';
 
 // =====================================
 // 駒画像のフォルダとボード画像の定義（エクスポート）
@@ -86,6 +87,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   // 盤面コンテナへの参照（マスサイズ計算用）
   const boardRef = useRef<HTMLDivElement>(null);
   const [squareSize, setSquareSize] = useState(0);
+  // 弾き飛ばし表示フラグ（着地後に表示）
+  const [showFlyingPiece, setShowFlyingPiece] = useState(false);
+  // 爆発エフェクト表示フラグ
+  const [showExplosion, setShowExplosion] = useState(false);
 
   // マスのサイズを計算（リサイズ対応）
   useEffect(() => {
@@ -99,6 +104,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
+
+  // アニメーションが終了したらエフェクトをリセット
+  useEffect(() => {
+    if (!moveAnimation) {
+      setShowFlyingPiece(false);
+      setShowExplosion(false);
+    }
+  }, [moveAnimation]);
+
+  // 着地時のコールバック（弾き飛ばしと爆発開始）
+  // 駒を取る場合のみエフェクトを表示
+  const handleLanded = useCallback(() => {
+    // moveAnimationが存在し、isCaptureがtrueで、flyingPieceが存在する場合のみ
+    if (moveAnimation?.isCapture && flyingPiece) {
+      setShowFlyingPiece(true);
+      setShowExplosion(true);
+    }
+  }, [flyingPiece, moveAnimation]);
 
   // 盤面を2次元配列に変換
   const board: (Square | null)[][] = useMemo(() => {
@@ -162,8 +185,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
               // アニメーション中の駒は元の位置では非表示
               const isAnimatingPiece = moveAnimation && moveAnimation.fromSquareId === square.id;
-              // 弾き飛ばされる駒も非表示（踏みつけられる側）
-              const isFlyingPiece = flyingPiece && moveAnimation && 
+              // 弾き飛ばされる駒は着地後（showFlyingPieceがtrue）に非表示
+              // 着地するまでは元の位置に表示しておく
+              const isFlyingPiece = showFlyingPiece && flyingPiece && moveAnimation && 
                 moveAnimation.toSquareId === square.id && moveAnimation.isCapture;
 
               return (
@@ -232,11 +256,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             pieceFolder={pieceFolder}
             squareSize={squareSize}
             onAnimationComplete={onAnimationComplete}
+            onLanded={handleLanded}
           />
         )}
 
-        {/* 弾き飛ばされる駒 */}
-        {flyingPiece && moveAnimation && squareSize > 0 && (
+        {/* 弾き飛ばされる駒（着地後に表示） */}
+        {showFlyingPiece && flyingPiece && moveAnimation && squareSize > 0 && (
           <FlyingPiece
             kind={flyingPiece.kind}
             color={flyingPiece.color}
@@ -244,6 +269,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             startPosition={getSquarePosition(moveAnimation.toSquareId)}
             squareSize={squareSize}
             onComplete={onFlyingComplete}
+          />
+        )}
+
+        {/* 爆発エフェクト（着地後に表示） */}
+        {showExplosion && moveAnimation && squareSize > 0 && (
+          <ExplosionEffect
+            position={getSquarePosition(moveAnimation.toSquareId)}
+            squareSize={squareSize}
+            onComplete={() => setShowExplosion(false)}
           />
         )}
       </div>
