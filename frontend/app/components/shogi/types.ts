@@ -92,4 +92,12 @@ export interface MoveAnimationState {
   capturedPiece?: { kind: PieceKind; color: Color };
   /** 現在のアニメーションフェーズ */
   phase: AnimationPhase;
+  /** ドロップ（打ち）かどうか */
+  isDrop?: boolean;
+  /** ドロップ開始位置（クライアント座標） */
+  dropStartPosition?: { x: number; y: number };
+  /** 成りかどうか */
+  promote?: boolean;
+  /** 成った後の駒の種類 */
+  promotedKind?: PieceKind;
 }
