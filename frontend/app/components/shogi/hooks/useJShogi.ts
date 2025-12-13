@@ -93,6 +93,17 @@ type MoveRecord =
   | { type: 'move'; fromX: number; fromY: number; toX: number; toY: number; promote: boolean; capturedKind?: PieceKind }
   | { type: 'drop'; toX: number; toY: number; kind: PieceKind };
 
+// 成りのマッピング
+const PROMOTED_KIND_MAP: Partial<Record<PieceKind, PieceKind>> = {
+  'FU': 'TO',
+  'KY': 'NY',
+  'KE': 'NK',
+  'GI': 'NG',
+  'KA': 'UM',
+  'HI': 'RY',
+  // 銀、金、王などは通常成らないが、銀は成銀(NG)になる場合がある
+};
+
 // 座標変換ヘルパー
 // UI: x(0=9筋, 8=1筋), y(0=1段, 8=9段)
 // Lib: x(9..1), y(1..9) ※shogi.jsの実装によるが一般的な数値座標系を想定
@@ -142,6 +153,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   // UI状態
   const [selectedSquareId, setSelectedSquareId] = useState<string | null>(null);
   const [selectedHandPieceId, setSelectedHandPieceId] = useState<string | null>(null);
+  const [selectedHandPiecePosition, setSelectedHandPiecePosition] = useState<{ x: number, y: number } | null>(null);
   const [waitingForPromotion, setWaitingForPromotion] = useState(false);
   const [pendingMove, setPendingMove] = useState<{ fromX: number, fromY: number, toX: number, toY: number } | null>(null);
   const [waitingForResignConfirm, setWaitingForResignConfirm] = useState(false);
@@ -539,7 +551,10 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         kind: capturedPiece.kind as PieceKind,
         color: capturedPiece.color as Color
       } : undefined,
-      phase: 'lifting'
+      phase: 'lifting',
+      isDrop: false,
+      promote,
+      promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
     });
 
     // アニメーション完了時に実行する盤面更新を予約
@@ -586,20 +601,55 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
       setLastMoveToSquareId(`${toX}${toY}`);
 
-      // 履歴に記録（待った用）
-      setMoveHistory(prev => [...prev, {
-        type: 'drop',
-        toX, toY, kind
-      }]);
+        // ドロップ成功時にアニメーション開始
+      if (selectedHandPiecePosition) {
+        setIsAnimating(true);
+        
+        // ドロップアニメーション状態をセット
+        setMoveAnimation({
+          pieceKind: kind,
+          pieceColor: currentTurn, // 現在の手番プレイヤーの色
+          fromSquareId: 'HAND', // ダミーID
+          toSquareId: `${toX}${toY}`,
+          // fromPositionはダミー（GameBoardでクライアント座標から変換）
+          fromPosition: { x: 0, y: 0 }, 
+          toPosition: { x: 0, y: 0 },
+          isCapture: false,
+          phase: 'lifting', // または 'moving'
+          isDrop: true,
+          dropStartPosition: selectedHandPiecePosition
+        });
 
-      setVersion(v => v + 1);
+         // アニメーション完了後の更新を予約（盤面更新自体はstate更新で行われるが、アニメーションと同期させる）
+        // ※ dropの場合はshogi.jsのdropは既に実行済みだが、
+        // アニメーション中は盤面上に駒を表示したくない（AnimatedPieceが飛んでいるため）
+        // GameBoard側で `isAnimatingPiece` 判定に `isDrop` も考慮させる必要がある
+        pendingBoardUpdateRef.current = () => {
+             // 履歴に記録（待った用）
+            setMoveHistory(prev => [...prev, {
+                type: 'drop',
+                toX, toY, kind
+            }]);
+            setVersion(v => v + 1);
+        };
 
-      // AI対局モードの場合、WebSocketで送信
-      if (useAI && isConnected) {
-        const pieceUSI = pieceKindToUSI(kind);
-        const toUSI = squareIdToUSI(`${toX}${toY}`);
-        const moveStr = pieceUSI + '*' + toUSI;
-        sendMove(moveStr);
+        // 一旦バージョン更新は保留にするため、ここではsetVersionしない
+        // （pendingBoardUpdateRefで実行）
+
+        // AI対局モードの場合、WebSocketで送信
+        if (useAI && isConnected) {
+          const pieceUSI = pieceKindToUSI(kind);
+          const toUSI = squareIdToUSI(`${toX}${toY}`);
+          const moveStr = pieceUSI + '*' + toUSI;
+          sendMove(moveStr);
+        }
+      } else {
+         // アニメーションなしの場合（通常ありえないが）
+        setMoveHistory(prev => [...prev, {
+            type: 'drop',
+            toX, toY, kind
+        }]);
+        setVersion(v => v + 1);
       }
     } catch (e) {
       console.error("Drop error:", e);
@@ -607,7 +657,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setSelectedHandPieceId(null);
     setSelectedSquareId(null);
     setAvailableMoves(new Set()); // クリア
-  }, [useAI, isConnected, sendMove]);
+  }, [useAI, isConnected, sendMove, selectedHandPiecePosition]);
 
   // マスクリック
   const onSquareClick = useCallback((squareId: string) => {
@@ -632,7 +682,13 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // 1. 持ち駒を選択中 -> 打つ
     if (selectedHandPieceId) {
       // "FU-0" のようなIDから種類を取得
-      const kind = selectedHandPieceId.split('-')[0] as PieceKind;
+      const parts = selectedHandPieceId.split('-');
+      let kind: PieceKind;
+      if (parts.length === 3) {
+        kind = parts[1] as PieceKind;
+      } else {
+        kind = parts[0] as PieceKind;
+      }
       // shogi.js の drop はバリデーション込み
       // 空きマスかチェックなどはライブラリが例外を投げるかfalseを返す
       if (!targetSquare.piece) {
@@ -746,13 +802,24 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       setAvailableMoves(newAvailableMoves);
     }
 
-  }, [squares, selectedSquareId, selectedHandPieceId, winner, waitingForPromotion, waitingForResignConfirm, movePiece, dropPiece, useAI, isAIThinking, gameStatus, playerColor]);
+  }, [squares, selectedSquareId, selectedHandPieceId, winner, waitingForPromotion, waitingForResignConfirm, movePiece, dropPiece, selectedHandPiecePosition, useAI, isAIThinking, gameStatus, playerColor]);
 
   // 持ち駒クリック
-  const onHandPieceClick = useCallback((uniqueId: string) => {
+  const onHandPieceClick = useCallback((uniqueId: string, position?: { x: number, y: number }) => {
     // uniqueId format: "KIND-index"
-    const [kind, _] = uniqueId.split('-');
+    const parts = uniqueId.split('-');
+    let kind: PieceKind;
+    if (parts.length === 3) {
+        kind = parts[1] as PieceKind;
+    } else {
+        kind = parts[0] as PieceKind;
+    }
     const currentTurn = gameRef.current.turn;
+
+    // 座標を保存
+    if (position) {
+        setSelectedHandPiecePosition(position);
+    }
 
     // AI対局モードで、AI思考中またはゲーム終了時はクリック無効⚠️
     if (useAI && (isAIThinking || gameStatus === 'game_over')) return;
@@ -774,6 +841,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // 選択解除ならクリア、新規選択なら打てる場所を計算
     if (selectedHandPieceId === uniqueId) {
       setSelectedHandPieceId(null);
+      setSelectedHandPiecePosition(null);
       setAvailableMoves(new Set());
     } else {
       setSelectedHandPieceId(uniqueId);

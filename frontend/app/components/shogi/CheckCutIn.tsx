@@ -31,9 +31,9 @@ export const CheckCutIn: React.FC<CheckCutInProps> = ({
 
     const isFirst = attackerColor === 0;
     const bgGradient = isFirst
-        ? 'linear-gradient(135deg, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.95) 100%)'
-        : 'linear-gradient(135deg, rgba(34,197,94,0.9) 0%, rgba(22,163,74,0.95) 100%)';
-    const accentColor = isFirst ? '#60a5fa' : '#4ade80';
+        ? 'linear-gradient(135deg, rgba(220,38,38,0.9) 0%, rgba(185,28,28,0.95) 100%)' // Red
+        : 'linear-gradient(135deg, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.95) 100%)'; // Blue
+    const accentColor = isFirst ? '#f87171' : '#60a5fa'; // Red-400 : Blue-400
 
     return (
         <motion.div
@@ -75,7 +75,7 @@ export const CheckCutIn: React.FC<CheckCutInProps> = ({
                     boxShadow: `0 0 60px ${accentColor}`,
                 }}
                 initial={{ x: '-100%' }}
-                animate={{ x: ['−100%', '0%', '0%', '0%', '100%'] }}
+                animate={{ x: ['-100%', '0%', '0%', '0%', '100%'] }}
                 transition={{
                     duration: 2.2,
                     times: [0, 0.12, 0.5, 0.85, 1],
