@@ -8,19 +8,30 @@ export default function SoundSettings() {
   // set〇〇を使うと、値が更新されて画面の見た目も変わります。
   const [bgmVolume, setBgmVolume] = useState<number>(30);
   const [seVolume, setSeVolume] = useState<number>(80);
-  const [isPlayingBgm, setIsPlayingBgm] = useState<boolean>(false);
+  
+  // 変更点：どちらの曲を再生中か管理するフラグを分けました
+  const [isPlayingHome, setIsPlayingHome] = useState<boolean>(false); // 野山用
+  const [isPlayingGame, setIsPlayingGame] = useState<boolean>(false); // 朧月用
 
   // === プレイヤーの保持（Ref） ===
   // 音楽ファイルの実体です。画面が再描画されてもリセットされない「箱」に入れておきます。
-  const bgmPlayer = useRef<HTMLAudioElement | null>(null);
+  const homeBgmPlayer = useRef<HTMLAudioElement | null>(null); // 追加：野山用
+  const gameBgmPlayer = useRef<HTMLAudioElement | null>(null); // 追加：朧月用
   const sePlayer = useRef<HTMLAudioElement | null>(null);
 
   // === 初期設定（Effect） ===
   // 画面が開かれた瞬間に「1回だけ」実行されます。
   useEffect(() => {
     // 1. 音声ファイルをセット
-    bgmPlayer.current = new Audio('/sounds/覗くは朧月.mp3'); 
-    bgmPlayer.current.loop = true; // BGMはループ再生
+    // ホーム画面用
+    homeBgmPlayer.current = new Audio('/sounds/野山.mp3'); 
+    homeBgmPlayer.current.loop = true;
+    
+    // 対局画面用
+    gameBgmPlayer.current = new Audio('/sounds/覗くは朧月.mp3'); 
+    gameBgmPlayer.current.loop = true; 
+
+    // 効果音用
     sePlayer.current = new Audio('/sounds/将棋の駒を打つ.mp3');
 
     // 2. ブラウザの保存データ（localStorage）があれば読み込む
@@ -28,9 +39,13 @@ export default function SoundSettings() {
     if (savedBgmVolume) {
       const volumeNum = Number(savedBgmVolume);
       setBgmVolume(volumeNum);
-      bgmPlayer.current.volume = volumeNum / 100; // 音量は0.0~1.0で指定
+      // 両方のプレイヤーに初期音量を適用
+      homeBgmPlayer.current.volume = volumeNum / 100;
+      gameBgmPlayer.current.volume = volumeNum / 100;
     } else {
-      bgmPlayer.current.volume = 30 / 100; // データがなければ初期値
+      // データがなければ初期値
+      homeBgmPlayer.current.volume = 30 / 100; 
+      gameBgmPlayer.current.volume = 30 / 100;
     }
 
     // SEも同様に読み込み
@@ -41,41 +56,77 @@ export default function SoundSettings() {
 
     // 3. お片付け（画面を閉じた時に音を止める）
     return () => {
-      if (bgmPlayer.current) {
-        bgmPlayer.current.pause();
-        bgmPlayer.current = null;
+      if (homeBgmPlayer.current) {
+        homeBgmPlayer.current.pause();
+        homeBgmPlayer.current = null;
+      }
+      if (gameBgmPlayer.current) {
+        gameBgmPlayer.current.pause();
+        gameBgmPlayer.current = null;
       }
     };
   }, []);
 
   // === 操作時の処理 ===
 
-  // BGMスライダーを動かした時
+  // BGMスライダーを動かした時（一括設定）
   const handleBgmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number(e.target.value);
     setBgmVolume(newVolume); // 画面の数値を更新
     
     // ここでブラウザに保存（次回アクセス時に設定を引き継ぐため）
+    // 対局用とホーム用の両方のキーに同じ値を保存します
     localStorage.setItem('shogi_bgm_volume', newVolume.toString());
     
-    // 実際に鳴っている音量も即座に変更
-    if (bgmPlayer.current) {
-      bgmPlayer.current.volume = newVolume / 100;
+    // 実際に鳴っている音量も即座に変更（両方に適用）
+    if (homeBgmPlayer.current) {
+      homeBgmPlayer.current.volume = newVolume / 100;
+    }
+    if (gameBgmPlayer.current) {
+      gameBgmPlayer.current.volume = newVolume / 100;
     }
   };
 
-  // 再生・停止ボタンを押した時
-  const toggleBgm = () => {
-    if (!bgmPlayer.current) return;
-    if (isPlayingBgm) {
-      bgmPlayer.current.pause();
-      setIsPlayingBgm(false);
+  // ホームBGM（野山）の再生テスト
+  const toggleHomeBgm = () => {
+    if (!homeBgmPlayer.current) return;
+
+    // もし対局BGMが鳴っていたら止める（混ざらないように）
+    if (isPlayingGame && gameBgmPlayer.current) {
+      gameBgmPlayer.current.pause();
+      setIsPlayingGame(false);
+    }
+
+    if (isPlayingHome) {
+      homeBgmPlayer.current.pause();
+      setIsPlayingHome(false);
     } else {
-      bgmPlayer.current.volume = bgmVolume / 100;
-      bgmPlayer.current.play().catch(e => console.error("再生エラー:", e));
-      setIsPlayingBgm(true);
+      homeBgmPlayer.current.volume = bgmVolume / 100;
+      homeBgmPlayer.current.play().catch(e => console.error("再生エラー:", e));
+      setIsPlayingHome(true);
     }
   };
+
+  // 対局BGM（朧月）の再生テスト
+  const toggleGameBgm = () => {
+    if (!gameBgmPlayer.current) return;
+
+    // もしホームBGMが鳴っていたら止める
+    if (isPlayingHome && homeBgmPlayer.current) {
+      homeBgmPlayer.current.pause();
+      setIsPlayingHome(false);
+    }
+
+    if (isPlayingGame) {
+      gameBgmPlayer.current.pause();
+      setIsPlayingGame(false);
+    } else {
+      gameBgmPlayer.current.volume = bgmVolume / 100;
+      gameBgmPlayer.current.play().catch(e => console.error("再生エラー:", e));
+      setIsPlayingGame(true);
+    }
+  };
+
 
   // SEスライダーを動かした時
   const handleSeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,23 +158,38 @@ export default function SoundSettings() {
           <label htmlFor="bgm-slider" className="font-semibold text-stone-700">
             BGM
           </label>
+          
           <div className="flex items-center gap-2">
-            {/* 再生ボタン */}
+            {/* ホームBGM テストボタン */}
             <button
-              onClick={toggleBgm}
-              className={`text-xs px-3 py-1 rounded-full transition-colors font-bold ${
-                isPlayingBgm 
-                  ? "bg-amber-600 text-white hover:bg-amber-700" 
-                  : "bg-stone-200 text-stone-600 hover:bg-stone-300"
+              onClick={toggleHomeBgm}
+              className={`text-xs px-2 py-1 rounded transition-colors font-bold border ${
+                isPlayingHome 
+                  ? "bg-amber-600 text-white border-amber-700 hover:bg-amber-700" 
+                  : "bg-stone-100 text-stone-600 border-stone-300 hover:bg-stone-200"
               }`}
             >
-              {isPlayingBgm ? "■ 停止" : "▶ 再生テスト"}
+              {isPlayingHome ? "■ HOME" : "▶ HOME"}
             </button>
-            <span className="text-stone-500 text-sm w-8 text-right">
+
+            {/* 対局BGM テストボタン */}
+            <button
+              onClick={toggleGameBgm}
+              className={`text-xs px-2 py-1 rounded transition-colors font-bold border ${
+                isPlayingGame 
+                  ? "bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700" 
+                  : "bg-stone-100 text-stone-600 border-stone-300 hover:bg-stone-200"
+              }`}
+            >
+              {isPlayingGame ? "■ GAME" : "▶ GAME"}
+            </button>
+
+            <span className="text-stone-500 text-sm w-8 text-right ml-1">
               {bgmVolume}
             </span>
           </div>
         </div>
+        
         {/* スライダー本体 */}
         <input
           id="bgm-slider"
