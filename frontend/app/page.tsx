@@ -398,13 +398,13 @@ export default function Home() {
                     className="relative flex-1 md:flex-none md:w-full inline-flex items-center justify-center px-4 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
                   >
                     設定
-                  </Link>                  
-                  
-                  <button
+                  </Link>
+                  <Link                  
+                    href="/hujiikuntoha"
                     className="relative flex-1 md:flex-none md:w-full inline-flex items-center justify-center px-4 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
                   >
-                    藤井君の歴史
-                  </button>
+                    藤井君とは
+                  </Link>
                 </motion.div>
 
               </div> {/* 右カラム終了 */}
