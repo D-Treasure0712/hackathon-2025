@@ -178,27 +178,33 @@ export default function Home() {
     const hasVisited = sessionStorage.getItem("visited_intro");
 
     if (hasVisited) {
-      // 変更点2：訪問済みの場合だけ、イントロを「表示しない」に変更します
+      // 訪問済みの場合だけ、イントロを「表示しない」に変更します
       setShowIntro(false);
       setIsCheckComplete(true); // チェック完了
     } else {
       // 初回訪問の場合（showIntroはすでに true なので何もしない）
+      // 変更点：自動遷移（setTimeout）を削除し、クリック待ちにします
       setIsCheckComplete(true); // チェック完了
-
-      // 2秒後にイントロ画面を非表示にするタイマー
-      const timer = setTimeout(() => {
-        setShowIntro(false);
-        sessionStorage.setItem("visited_intro", "true");
-      }, 2000);
-
-      return () => clearTimeout(timer); 
     }
   }, []);
 
-// 🎵 自動再生ロジック
-  // showIntroがfalseになったら（メイン画面になったら）勝手に再生する
+  // 🎵 変更点：画面クリックで開始するハンドラを追加
+  const handleStart = () => {
+    // 1. ユーザーアクション内なのでBGM再生が許可されます
+    if (audioRef.current) {
+      audioRef.current.volume = 0.4;
+      audioRef.current.play().catch(e => console.log("再生エラー:", e));
+    }
+
+    // 2. イントロ画面を閉じて、訪問済みフラグを立てる
+    setShowIntro(false);
+    sessionStorage.setItem("visited_intro", "true");
+  };
+
+  // 🎵 自動再生ロジック（バックアップ）
+  // すでに訪問済みなどで showIntro が false の場合に再生を試みる
   useEffect(() => {
-    if (!showIntro && audioRef.current) {
+    if (!showIntro && audioRef.current && audioRef.current.paused) {
       audioRef.current.volume = 0.4; // 音量調整
       audioRef.current.play().catch((e) => {
         // 万が一ブラウザにブロックされてもエラーで止まらないようにログだけ出す
@@ -285,16 +291,27 @@ export default function Home() {
         {showIntro ? (
           // -------------------------------------------------------------
           // 1️⃣ イントロ画面 (Z-index: 50 / 最前面)
+          // 変更点：クリックで handleStart を呼ぶように変更
           // -------------------------------------------------------------
           <motion.div
             key="intro-screen"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-white"
+            onClick={handleStart} // ここをクリックイベントに紐づけ
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white cursor-pointer" // flex-colとcursor-pointerを追加
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 1 } }} // 1秒かけてフェードアウト
           >
-            <p className="text-black text-xl md:text-2xl font-bold tracking-widest animate-pulse">
+            <p className="text-black text-2xl md:text-4xl font-bold tracking-widest animate-pulse">
               created by 田中角行
             </p>
+            {/* クリック待ちであることを伝えるテキストを追加 */}
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5 }}
+              className="mt-35 text-stone-400 text-xl md:text-2xl animate-bounce tracking-widest"
+            >
+               click to start
+            </motion.p>
           </motion.div>
 
         ) : (
