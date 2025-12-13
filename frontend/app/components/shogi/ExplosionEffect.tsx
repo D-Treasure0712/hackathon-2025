@@ -95,7 +95,7 @@ export const ExplosionEffect: React.FC<ExplosionEffectProps> = ({
         }}
       >
         <Image
-          src={`/images/crack.svg?t=${Date.now()}`}
+          src={`/images/crack.svg`}
           alt="ひび割れ"
           fill
           className="object-contain"
