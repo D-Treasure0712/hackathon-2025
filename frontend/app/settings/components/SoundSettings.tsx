@@ -148,14 +148,14 @@ export default function SoundSettings() {
   return (
     <div className="space-y-8">
       {/* 見出し */}
-      <h2 className="text-xl font-bold text-stone-700 border-l-4 border-amber-500 pl-3">
+      <h2 className="text-xl font-bold text-yellow-500 border-l-4 border-amber-500 pl-3">
         音量設定
       </h2>
 
       {/* --- BGMの設定エリア --- */}
       <div className="space-y-2">
         <div className="flex justify-between items-center mb-1">
-          <label htmlFor="bgm-slider" className="font-semibold text-stone-700">
+          <label htmlFor="bgm-slider" className="font-semibold text-yellow-500">
             BGM
           </label>
           
@@ -205,7 +205,7 @@ export default function SoundSettings() {
       {/* --- 効果音の設定エリア --- */}
       <div className="space-y-2">
         <div className="flex justify-between items-center mb-1">
-          <label htmlFor="se-slider" className="font-semibold text-stone-700">
+          <label htmlFor="se-slider" className="font-semibold text-yellow-500">
             効果音
           </label>
           <span className="text-stone-500 text-sm w-8 text-right">
@@ -224,7 +224,7 @@ export default function SoundSettings() {
         <div className="flex justify-end mt-2">
           <button 
             onClick={playTestSe}
-            className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 px-3 py-1 rounded transition-colors border border-stone-300"
+            className="text-sm bg-stone-100 hover:bg-stone-200 text-stone-600 px-3 py-1 rounded transition-colors border border-stone-300"
           >
             🔊 音を確認する
           </button>
