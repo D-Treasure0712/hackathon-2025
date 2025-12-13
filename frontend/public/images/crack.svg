@@ -1,0 +1,16 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="fade" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="black" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="black" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g stroke="url(#fade)" stroke-width="3" fill="none" stroke-linecap="round">
+    <!-- Center to outward cracks -->
+    <path d="M100 100 L100 40 L95 20 M100 100 L140 60 L160 50 M100 100 L150 100 L180 95 M100 100 L140 140 L160 160 M100 100 L100 160 L105 180 M100 100 L60 140 L40 150 M100 100 L50 100 L20 105 M100 100 L60 60 L40 40" />
+    <!-- Inner connections -->
+    <path d="M120 80 L130 90 M130 110 L120 120 M80 120 L70 110 M70 90 L80 80" stroke-width="1.5" />
+    <!-- Random jagged lines -->
+    <path d="M100 40 L110 30 M140 60 L145 50 M140 140 L130 150 M60 140 L55 150" stroke-width="1" />
+  </g>
+</svg>
