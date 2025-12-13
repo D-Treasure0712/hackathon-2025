@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 // 🎬 アニメーション用ライブラリ
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
@@ -17,7 +17,6 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 const FloatingPetal = () => {
   // ⚠️ 注意: ランダム値をレンダリング時に生成するため、
   // 親コンポーネントで {isClient && ...} を使ってクライアントのみで表示するように制御しています。
-  // (サーバーとクライアントで値が異なるとハイドレーションエラーになるため)
 
   // 各パラメータをランダムに決定
   const randomXStart = Math.random() * 100;       // 開始位置 (画面の横幅 0%〜100%)
@@ -99,8 +98,6 @@ const FloatingPetal = () => {
  */
 
 // 1. 背景画像の常時アニメーション
-// ------------------------------------
-// ゆったりと拡大・移動を繰り返し、静止画に奥行きを与えます。
 const bgAnimation: Variants = {
   animate: {
     scale: [1.0, 1.08, 1.0], // 等倍 → 1.08倍 → 等倍
@@ -115,8 +112,6 @@ const bgAnimation: Variants = {
 };
 
 // 2. メインコンテンツのコンテナ
-// ------------------------------------
-// 子要素（ロゴ、ボタンなど）を順番に表示させる「指揮者」の役割です。
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -129,8 +124,6 @@ const containerVariants: Variants = {
 };
 
 // 3. タイトルロゴのアニメーション
-// ------------------------------------
-// 大きく表示された状態から縮小し、「ドン」と着地するバネのような動き。
 const logoVariant: Variants = {
   hidden: { scale: 2.5, opacity: 0, y: -20 },
   visible: {
@@ -147,8 +140,6 @@ const logoVariant: Variants = {
 };
 
 // 4. 各アイテム（画像・ボタン）の共通アニメーション
-// ------------------------------------
-// 下からフワッと浮き上がってくる動き。
 const itemFadeUpVariant: Variants = {
   hidden: { y: 50, opacity: 0 },
   visible: {
@@ -166,35 +157,56 @@ const itemFadeUpVariant: Variants = {
  */
 export default function Home() {
   // ⏳ 状態管理
-  // イントロダクション（白い画面）の表示フラグ
+  // セッションストレージの確認が終わったかどうかのフラグ
+  const [isCheckComplete, setIsCheckComplete] = useState(false);
+  
+  // イントロを表示するかどうか
+  // 変更点1：初期値を「true (表示する)」にします。これでデフォルトが表示ありになります。
   const [showIntro, setShowIntro] = useState(true);
-  // クライアントサイドレンダリングが完了したかのフラグ（花びら表示用）
+  
   const [isClient, setIsClient] = useState(false);
 
   // 初回マウント時の処理
   useEffect(() => {
-    setIsClient(true); // クライアントでの描画開始を記録
+    setIsClient(true); 
 
-    // 2秒後にイントロ画面を非表示にするタイマー
-    const timer = setTimeout(() => {
+    // セッションストレージを確認
+    const hasVisited = sessionStorage.getItem("visited_intro");
+
+    if (hasVisited) {
+      // 変更点2：訪問済みの場合だけ、イントロを「表示しない」に変更します
       setShowIntro(false);
-    }, 2000);
+      setIsCheckComplete(true); // チェック完了
+    } else {
+      // 初回訪問の場合（showIntroはすでに true なので何もしない）
+      setIsCheckComplete(true); // チェック完了
 
-    return () => clearTimeout(timer); // クリーンアップ
+      // 2秒後にイントロ画面を非表示にするタイマー
+      const timer = setTimeout(() => {
+        setShowIntro(false);
+        sessionStorage.setItem("visited_intro", "true");
+      }, 2000);
+
+      return () => clearTimeout(timer); 
+    }
   }, []);
+
+  // ... (以下、petalCount や 黒画面ガードのコードはそのまま)
 
   // 🌸 花びらの生成枚数
   const petalCount = 30;
 
+  // 🛑 チェックが終わるまでは真っ黒な画面を返して、一瞬の白いフラッシュを防ぐ
+  if (!isCheckComplete) {
+    return <div className="min-h-svh w-full bg-black" />;
+  }
+
   return (
     // ✨ 全体のラッパー
-    // min-h-svh: モバイルのアドレスバーを考慮した高さ設定
     <div className="relative min-h-svh w-full overflow-hidden text-white font-serif">
       
       {/* =================================================================
         Layer 0: 背景画像エリア (Z-index: 0)
-        -----------------------------------------------------------------
-        AnimatePresenceの外に置くことで、イントロ中も常に表示・動作させます。
       */}
       <div className="absolute inset-0 z-0 overflow-hidden bg-black">
         
@@ -236,9 +248,6 @@ export default function Home() {
 
       {/* =================================================================
         Layer 1: 花びらエフェクト (Z-index: 1)
-        -----------------------------------------------------------------
-        背景より手前、コンテンツより奥に配置。
-        isClient チェックにより、サーバーとクライアントの整合性を保ちます。
       */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
         {isClient && [...Array(petalCount)].map((_, i) => (
@@ -248,9 +257,6 @@ export default function Home() {
 
       {/* =================================================================
         Layer 10 & 50: コンテンツエリアとイントロ画面
-        -----------------------------------------------------------------
-        AnimatePresence を使い、showIntro の切り替え時に
-        フェードアウトのアニメーションを実行します。
       */}
       <AnimatePresence mode="wait">
         
@@ -294,7 +300,6 @@ export default function Home() {
                     alt="Fujii-kun ロゴ"
                     width={600}
                     height={600}
-                    // レスポンシブ対応のサイズ調整と位置調整
                     className="w-[70vw] max-w-[420px] h-auto md:w-[600px] md:h-auto drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] md:translate-x-[110px] md:-translate-y-[10px]"
                     style={{ objectFit: 'contain' }}
                     priority 
@@ -334,10 +339,9 @@ export default function Home() {
                       fill 
                       priority 
                       style={{ objectFit: 'contain' }} 
-                      // ホバー時に画像を少し拡大するエフェクト
                       className="absolute inset-0 z-0 transition-transform duration-300 group-hover:scale-105" 
                     />
-                    < span  className = "sr-only" >対局開始</ span >
+                    <span className="sr-only">対局開始</span>
                     
                     {/* ホバー時の光のエフェクト */}
                     <span className="absolute inset-0 z-10 w-full h-full bg-gradient-to-br from-amber-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
