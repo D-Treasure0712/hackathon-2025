@@ -10,10 +10,10 @@ const getPieceImagePath = (folder: string, kind: PieceKind, color: Color): strin
   // color: 0 = Black/Sente(先手/下側), 1 = White/Gote(後手/上側)
   // 画像ファイル: 0 = 上向き(先手用: 0XX.svg), 1 = 下向き(後手用: 1XX.svg)
   const prefix = color === 0 ? '0' : '1';
-  
+
   // 後手の王は「玉」(GY)の画像を使用（持ち駒にはならないが念のため）
   const pieceKind = (kind === 'OU' && color === 1) ? 'GY' : kind;
-  
+
   return `/pieces/${folder}/${prefix}${pieceKind}.svg`;
 };
 
@@ -56,13 +56,13 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
   return (
     <div className={`
       flex flex-wrap gap-2 p-3 rounded-lg min-h-[70px] items-center backdrop-blur-sm shadow-lg
-      ${targetPlayer === 0 
-        ? 'bg-white/80 dark:bg-black/70 self-end border border-white/20' 
+      ${targetPlayer === 0
+        ? 'bg-white/80 dark:bg-black/70 self-end border border-white/20'
         : 'bg-white/80 dark:bg-black/70 self-start border border-white/20'
       }
     `}>
       <div className="text-xs font-bold text-stone-600 dark:text-stone-300 w-full mb-1">
-        {targetPlayer === 0 ? '☗ 先手' : '☖ 後手'} 持駒
+        {targetPlayer === 0 ? '☗ 先手' : '☖ 後手'} 持ち駒
       </div>
 
       {ORDER.map((kind) => {
@@ -83,10 +83,10 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
             className={`
               relative px-1 py-1 border rounded shadow-sm
               transition-all flex items-center justify-center
-              ${isSelected 
-                ? 'bg-blue-600 border-blue-800 ring-2 ring-blue-400' 
-                : isSelf 
-                  ? 'bg-transparent hover:bg-white/20 border-transparent cursor-pointer' 
+              ${isSelected
+                ? 'bg-blue-600 border-blue-800 ring-2 ring-blue-400'
+                : isSelf
+                  ? 'bg-transparent hover:bg-white/20 border-transparent cursor-pointer'
                   : 'bg-transparent border-transparent cursor-default'
               }
             `}
@@ -94,15 +94,15 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
           >
             {/* 駒画像を表示 */}
             <div className="relative w-full h-full">
-               <Image
-                 src={getPieceImagePath(pieceFolder, kind, targetPlayer)}
-                 alt={kind}
-                 fill
-                 className="object-contain drop-shadow-md"
-                 draggable={false}
-               />
+              <Image
+                src={getPieceImagePath(pieceFolder, kind, targetPlayer)}
+                alt={kind}
+                fill
+                className="object-contain drop-shadow-md"
+                draggable={false}
+              />
             </div>
-            
+
             {/* 枚数バッジ */}
             {group.count > 1 && (
               <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm border border-white z-10">
@@ -112,7 +112,7 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
           </button>
         );
       })}
-      
+
       {pieces.length === 0 && (
         <span className="text-sm text-stone-400">なし</span>
       )}

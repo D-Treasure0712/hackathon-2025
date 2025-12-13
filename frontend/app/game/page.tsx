@@ -14,7 +14,7 @@ export default function GamePage() {
       {/* 背景画像エリア */}
       <div className="absolute inset-0 z-0">
         <Image
-          src="/images/game-background.png?v=highres"
+          src="/images/game-background.png"
           alt="対局背景"
           fill
           priority
