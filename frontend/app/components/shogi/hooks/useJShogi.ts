@@ -58,6 +58,17 @@ export interface UseJShogiReturn {
 type MoveRecord =
   | { type: 'move'; fromX: number; fromY: number; toX: number; toY: number; promote: boolean; capturedKind?: PieceKind }
   | { type: 'drop'; toX: number; toY: number; kind: PieceKind };
+  
+// 成りのマッピング
+const PROMPTED_KIND_MAP: Partial<Record<PieceKind, PieceKind>> = {
+  'FU': 'TO',
+  'KY': 'NY',
+  'KE': 'NK',
+  'GI': 'NG',
+  'KA': 'UM',
+  'HI': 'RY',
+  // 銀、金、王などは通常成らないが、銀は成銀(NG)になる場合がある
+};
 
 // 座標変換ヘルパー
 // UI: x(0=9筋, 8=1筋), y(0=1段, 8=9段)
@@ -235,7 +246,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         color: capturedPiece.color as Color
       } : undefined,
       phase: 'lifting',
-      isDrop: false
+      isDrop: false,
+      promote,
+      promotedKind: promote ? (PROMPTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
     });
 
     // アニメーション完了時に実行する盤面更新を予約

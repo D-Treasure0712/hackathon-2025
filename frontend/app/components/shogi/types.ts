@@ -96,4 +96,8 @@ export interface MoveAnimationState {
   isDrop?: boolean;
   /** ドロップ開始位置（クライアント座標） */
   dropStartPosition?: { x: number; y: number };
+  /** 成りかどうか */
+  promote?: boolean;
+  /** 成った後の種類の駒 */
+  promotedKind?: PieceKind;
 }
