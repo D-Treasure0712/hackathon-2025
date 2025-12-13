@@ -167,8 +167,8 @@ export default function Home() {
     }
 
     // 2. ローカルストレージを確認 (音量設定があるか？)
-    // SoundSettings.tsx で保存したキー 'shogi_home_bgm_volume' を読みに行きます
-    const savedVolume = localStorage.getItem('shogi_home_bgm_volume');
+    // SoundSettings.tsx で保存したキー 'shogi_bgm_volume' を読みに行きます
+    const savedVolume = localStorage.getItem('shogi_bgm_volume');
     if (savedVolume) {
       // 0〜100で保存されているので、0.0〜1.0に変換
       const vol = Number(savedVolume) / 100;
