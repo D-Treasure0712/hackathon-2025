@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Square, PieceKind, Color } from './types';
+import { Square, PieceKind, Color, MoveAnimationState } from './types';
+import { AnimatedPiece } from './AnimatedPiece';
+import { FlyingPiece } from './FlyingPiece';
+import { ExplosionEffect } from './ExplosionEffect';
 
 // =====================================
 // 駒画像のフォルダとボード画像の定義（エクスポート）
@@ -27,15 +30,9 @@ export const BOARD_BACKGROUNDS = [
 ];
 
 // 駒の種類から画像ファイル名へのマッピング
-// SVGファイル命名規則: 0XX.svg(上向き/先手用), 1XX.svg(下向き/後手用)
 const getPieceImagePath = (folder: string, kind: PieceKind, color: Color): string => {
-  // color: 0 = Black/Sente(先手/下側), 1 = White/Gote(後手/上側)
-  // 画像ファイル: 0 = 上向き(先手用), 1 = 下向き(後手用)
   const prefix = color === 0 ? '0' : '1';
-  
-  // 後手の王は「玉」(GY)の画像を使用
   const pieceKind = (kind === 'OU' && color === 1) ? 'GY' : kind;
-  
   return `/pieces/${folder}/${prefix}${pieceKind}.svg`;
 };
 
@@ -58,9 +55,14 @@ export interface GameBoardProps {
   lastMoveToSquareId: string | null;
   availableMoves: Set<string>;
   onSquareClick: (squareId: string) => void;
-  // テーマ設定（親から渡される）
+  // テーマ設定
   pieceFolder: string;
   boardBackground: string;
+  // アニメーション関連（オプショナル - 段階的に導入可能）
+  moveAnimation?: MoveAnimationState | null;
+  flyingPiece?: { kind: PieceKind; color: Color; position: { x: number; y: number } } | null;
+  onAnimationComplete?: () => void;
+  onFlyingComplete?: () => void;
 }
 
 // =====================================
@@ -76,7 +78,51 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onSquareClick,
   pieceFolder,
   boardBackground,
+  // アニメーション関連（デフォルト値でオプショナル対応）
+  moveAnimation = null,
+  flyingPiece = null,
+  onAnimationComplete = () => {},
+  onFlyingComplete = () => {},
 }) => {
+  // 盤面コンテナへの参照（マスサイズ計算用）
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [squareSize, setSquareSize] = useState(0);
+  // 弾き飛ばし表示フラグ（着地後に表示）
+  const [showFlyingPiece, setShowFlyingPiece] = useState(false);
+  // 爆発エフェクト表示フラグ
+  const [showExplosion, setShowExplosion] = useState(false);
+
+  // マスのサイズを計算（リサイズ対応）
+  useEffect(() => {
+    const updateSize = () => {
+      if (boardRef.current) {
+        const size = boardRef.current.offsetWidth / 9;
+        setSquareSize(size);
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  // アニメーションが終了したらエフェクトをリセット
+  useEffect(() => {
+    if (!moveAnimation) {
+      setShowFlyingPiece(false);
+      setShowExplosion(false);
+    }
+  }, [moveAnimation]);
+
+  // 着地時のコールバック（弾き飛ばしと爆発開始）
+  // 駒を取る場合のみエフェクトを表示
+  const handleLanded = useCallback(() => {
+    // moveAnimationが存在し、isCaptureがtrueで、flyingPieceが存在する場合のみ
+    if (moveAnimation?.isCapture && flyingPiece) {
+      setShowFlyingPiece(true);
+      setShowExplosion(true);
+    }
+  }, [flyingPiece, moveAnimation]);
+
   // 盤面を2次元配列に変換
   const board: (Square | null)[][] = useMemo(() => {
     const b: (Square | null)[][] = Array(9).fill(null).map(() => Array(9).fill(null));
@@ -88,11 +134,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     return b;
   }, [squares]);
 
+  // マスIDからピクセル位置を計算
+  const getSquarePosition = (squareId: string): { x: number; y: number } => {
+    // squareId形式: "76" (筋+段) をUI座標に変換
+    const lx = parseInt(squareId[0]); // 筋 (9-1)
+    const ly = parseInt(squareId[1]); // 段 (1-9)
+    const uiX = 9 - lx; // UI上のX座標
+    const uiY = ly - 1; // UI上のY座標
+    return {
+      x: uiX * squareSize,
+      y: uiY * squareSize,
+    };
+  };
+
   return (
     <div className="flex flex-col items-center">
-      {/* 盤面コンテナ */}
+      {/* 盤面コンテナ - relative で子要素の absolute 配置の基準に */}
       <div
-        className="aspect-square border-2 border-black p-0.5"
+        ref={boardRef}
+        className="aspect-square border-2 border-black p-0.5 relative"
         style={{
           width: 'min(85vw, 60vh)',
           maxWidth: '100%',
@@ -123,6 +183,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               const isAvailable = availableMoves.has(square.id);
               const isCurrentPlayerPiece = piece && piece.color === currentPlayer;
 
+              // アニメーション中の駒は元の位置では非表示
+              const isAnimatingPiece = moveAnimation && moveAnimation.fromSquareId === square.id;
+              // 弾き飛ばされる駒は着地後（showFlyingPieceがtrue）に非表示
+              // 着地するまでは元の位置に表示しておく
+              const isFlyingPiece = showFlyingPiece && flyingPiece && moveAnimation && 
+                moveAnimation.toSquareId === square.id && moveAnimation.isCapture;
+
               return (
                 <button
                   key={square.id}
@@ -132,7 +199,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     aspect-square
                     relative
                     transition-colors
-                    ${isCurrentPlayerPiece ? 'cursor-pointer' : 'cursor-pointer'}
+                    cursor-pointer
                   `}
                   style={{
                     backgroundImage: `url(${boardBackground})`,
@@ -149,16 +216,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   {isLastMove && !isSelected && (
                     <div className="absolute inset-0 bg-yellow-400/30" />
                   )}
-                  {/* 移動可能マーク */}
+                  {/* 移動可能マーク（空きマス） */}
                   {isAvailable && !piece && (
                     <div className="absolute w-3 h-3 rounded-full bg-green-500/60" />
                   )}
+                  {/* 移動可能マーク（駒がある場合） */}
                   {isAvailable && piece && (
                     <div className="absolute inset-0 border-2 border-green-500/60 rounded-sm" />
                   )}
 
-                  {/* 駒画像 */}
-                  {piece && (
+                  {/* 駒画像 - アニメーション中は非表示 */}
+                  {piece && !isAnimatingPiece && !isFlyingPiece && (
                     <Image
                       src={getPieceImagePath(pieceFolder, piece.kind, piece.color)}
                       alt={PIECE_DISPLAY[piece.kind]}
@@ -174,6 +242,44 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             })
           )}
         </div>
+
+        {/* ===== アニメーションレイヤー ===== */}
+        
+        {/* 移動中の駒（盤面の上にオーバーレイ） */}
+        {moveAnimation && squareSize > 0 && (
+          <AnimatedPiece
+            animationState={{
+              ...moveAnimation,
+              fromPosition: getSquarePosition(moveAnimation.fromSquareId),
+              toPosition: getSquarePosition(moveAnimation.toSquareId),
+            }}
+            pieceFolder={pieceFolder}
+            squareSize={squareSize}
+            onAnimationComplete={onAnimationComplete}
+            onLanded={handleLanded}
+          />
+        )}
+
+        {/* 弾き飛ばされる駒（着地後に表示） */}
+        {showFlyingPiece && flyingPiece && moveAnimation && squareSize > 0 && (
+          <FlyingPiece
+            kind={flyingPiece.kind}
+            color={flyingPiece.color}
+            pieceFolder={pieceFolder}
+            startPosition={getSquarePosition(moveAnimation.toSquareId)}
+            squareSize={squareSize}
+            onComplete={onFlyingComplete}
+          />
+        )}
+
+        {/* 爆発エフェクト（着地後に表示） */}
+        {showExplosion && moveAnimation && squareSize > 0 && (
+          <ExplosionEffect
+            position={getSquarePosition(moveAnimation.toSquareId)}
+            squareSize={squareSize}
+            onComplete={() => setShowExplosion(false)}
+          />
+        )}
       </div>
     </div>
   );
