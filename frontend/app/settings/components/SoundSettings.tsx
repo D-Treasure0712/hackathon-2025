@@ -77,7 +77,6 @@ export default function SoundSettings() {
     // ここでブラウザに保存（次回アクセス時に設定を引き継ぐため）
     // 対局用とホーム用の両方のキーに同じ値を保存します
     localStorage.setItem('shogi_bgm_volume', newVolume.toString());
-    localStorage.setItem('shogi_home_bgm_volume', newVolume.toString());
     
     // 実際に鳴っている音量も即座に変更（両方に適用）
     if (homeBgmPlayer.current) {
