@@ -98,6 +98,6 @@ export interface MoveAnimationState {
   dropStartPosition?: { x: number; y: number };
   /** 成りかどうか */
   promote?: boolean;
-  /** 成った後の種類の駒 */
+  /** 成った後の駒の種類 */
   promotedKind?: PieceKind;
 }

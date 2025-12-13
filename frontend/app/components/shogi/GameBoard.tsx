@@ -260,7 +260,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         {/* 移動中の駒（アニメーション） */}
         {moveAnimation && (
           (() => {
-            let fromPos = { x: 0, y: 0 };
+            let fromPos;
             const toPos = getSquarePosition(moveAnimation.toSquareId); // 常に存在するはず
 
             if (moveAnimation.isDrop && moveAnimation.dropStartPosition && boardRef.current) {

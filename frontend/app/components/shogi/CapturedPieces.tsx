@@ -27,7 +27,6 @@ interface CapturedPiecesProps {
   selectedHandPieceId: string | null;
   onHandPieceClick: (pieceId: string, position?: { x: number, y: number }) => void;
   pieceFolder: string; // 駒画像フォルダ
-  children?: React.ReactNode;
 }
 
 export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
