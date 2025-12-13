@@ -12,6 +12,7 @@ import { CheckWarningDialog } from './CheckWarningDialog';
 import { ResignConfirmDialog } from './ResignConfirmDialog';
 import { GameOverDialog } from './GameOverDialog';
 import { CheckCutIn } from './CheckCutIn';
+import { GameMenuDialog } from './GameMenuDialog';
 
 /**
  * GameController コンポーネント
@@ -25,6 +26,8 @@ export const GameController: React.FC = () => {
   const [pieceFolder, setPieceFolder] = useState<string>('kanji_brown');
   const [boardBg, setBoardBg] = useState<string>('/gameboard/tile_wood1.png');
   const [isReady, setIsReady] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+
 
   useEffect(() => {
     // クライアントサイドでランダム選択
@@ -150,8 +153,25 @@ export const GameController: React.FC = () => {
         )}
       </div>
 
+      
+
       {/* 1. 後手（AI）の持ち駒 */}
       <div className="w-full">
+        {/* メニューボタン */}
+        <button
+          onClick={() => setShowMenu(true)}
+          className="
+            flex-shrink-0 w-10 h-10 mt-2 bg-stone-200 dark:bg-stone-700 
+            rounded border border-stone-400 dark:border-stone-500
+            flex items-center justify-center hover:bg-stone-300 dark:hover:bg-stone-600
+            transition-colors
+          "
+          aria-label="メニュー"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-stone-700 dark:text-stone-300">
+            <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+          </svg>
+        </button>
         <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-1 pl-2">
           AI（後手）
         </div>
@@ -187,7 +207,24 @@ export const GameController: React.FC = () => {
           flyingPiece={flyingPiece}
           onAnimationComplete={onAnimationComplete}
           onFlyingComplete={onFlyingComplete}
-        />
+        >
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className={`
+            absolute -right-24 bottom-0
+            px-3 py-1 rounded font-bold transition-colors
+            flex items-center gap-1
+            ${canUndo
+              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+              : 'bg-stone-300 text-stone-500 cursor-not-allowed'
+            }
+          `}
+          title="一手戻る（待った）"
+        >
+          <span>↩</span> 待った
+        </button>
+        </GameBoard>
         {/* AI思考中オーバーレイ */}
         {isAIThinking && (
           <div className="absolute inset-0 bg-black/10 dark:bg-white/5 flex items-center justify-center rounded-lg">
@@ -197,6 +234,7 @@ export const GameController: React.FC = () => {
             </div>
           </div>
         )}
+
       </div>
 
       {/* 4. 先手（自分）の持ち駒 */}
@@ -214,48 +252,7 @@ export const GameController: React.FC = () => {
         />
       </div>
 
-      {/* 5. 操作ボタンエリア */}
-      <div className="flex gap-4 mt-6">
-        {/* 待ったボタン - AI対局では無効 */}
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          className={`
-            px-4 py-2 rounded font-bold transition-colors
-            ${canUndo
-              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }
-          `}
-        >
-          待った
-        </button>
-
-        {/* 投了ボタン */}
-        <button
-          onClick={onResignRequest}
-          disabled={gameStatus !== 'playing' || winner !== null}
-          className={`
-            px-4 py-2 rounded font-bold text-white transition-colors
-            ${gameStatus === 'playing' && winner === null
-              ? 'bg-red-500 hover:bg-red-600 shadow-md'
-              : 'bg-gray-300 cursor-not-allowed'
-            }
-          `}
-        >
-          投了
-        </button>
-
-        <button
-          onClick={resetGame}
-          className="
-            px-4 py-2 rounded font-bold text-stone-700 bg-stone-200
-            hover:bg-stone-300 transition-colors shadow-sm
-          "
-        >
-          最初から
-        </button>
-      </div>
+      
 
       {/* 接続状態インジケータ */}
       <div className="text-xs text-zinc-400 dark:text-zinc-500">
@@ -297,6 +294,15 @@ export const GameController: React.FC = () => {
         onRematch={resetGame}
       />
 
+      {/* 9. 投了・最初からダイアログ */}
+      <GameMenuDialog
+        isOpen={showMenu}
+        onClose={() => setShowMenu(false)}
+        onResignRequest={onResignRequest}
+        onRestart={resetGame}
+      />
+
+
       {/* 10. 王手カットインアニメーション */}
       <AnimatePresence>
         {showCheckCutIn && (
@@ -309,4 +315,5 @@ export const GameController: React.FC = () => {
 
     </div>
   );
+
 };
