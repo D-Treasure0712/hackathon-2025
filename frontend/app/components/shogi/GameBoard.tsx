@@ -190,43 +190,55 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               const isFlyingPiece = showFlyingPiece && flyingPiece && moveAnimation && 
                 moveAnimation.toSquareId === square.id && moveAnimation.isCapture;
 
-              return (
-                <button
-                  key={square.id}
-                  onClick={() => onSquareClick(square.id)}
-                  className={`
-                    flex items-center justify-center
-                    aspect-square
-                    relative
-                    transition-colors
-                    cursor-pointer
-                  `}
-                  style={{
-                    backgroundImage: `url(${boardBackground})`,
-                    backgroundSize: '900% 900%',
-                    backgroundPosition: `${x * 12.5}% ${y * 12.5}%`,
-                  }}
-                  data-square-id={square.id}
-                >
-                  {/* 選択状態のオーバーレイ */}
-                  {isSelected && (
-                    <div className="absolute inset-0 bg-blue-400/50" />
-                  )}
-                  {/* 最後の移動先のオーバーレイ */}
-                  {isLastMove && !isSelected && (
-                    <div className="absolute inset-0 bg-yellow-400/30" />
-                  )}
-                  {/* 移動可能マーク（空きマス） */}
-                  {isAvailable && !piece && (
-                    <div className="absolute w-3 h-3 rounded-full bg-green-500/60" />
-                  )}
-                  {/* 移動可能マーク（駒がある場合） */}
-                  {isAvailable && piece && (
-                    <div className="absolute inset-0 border-2 border-green-500/60 rounded-sm" />
-                  )}
+               const isMoving =
+                  moveAnimation &&
+                  !moveAnimation.isDrop && // ドロップアニメーション中は移動元マスは空のまま
+                  moveAnimation.fromSquareId === square.id &&
+                  moveAnimation.isCapture === false;
 
-                  {/* 駒画像 - アニメーション中は非表示 */}
-                  {piece && !isAnimatingPiece && !isFlyingPiece && (
+               // ドロップアニメーション中、移動先マスに既に駒データが入ってしまっているので隠す
+               const isHiddenForDrop = 
+                  moveAnimation && 
+                  moveAnimation.isDrop && 
+                  moveAnimation.toSquareId === square.id;
+
+               return (
+                 <button
+                   key={square.id}
+                   onClick={() => onSquareClick(square.id)}
+                   className={`
+                     flex items-center justify-center
+                     aspect-square
+                     relative
+                     transition-colors
+                     cursor-pointer
+                   `}
+                   style={{
+                     backgroundImage: `url(${boardBackground})`,
+                     backgroundSize: '900% 900%',
+                     backgroundPosition: `${x * 12.5}% ${y * 12.5}%`,
+                   }}
+                   data-square-id={square.id}
+                 >
+                   {/* 選択状態のオーバーレイ */}
+                   {isSelected && (
+                     <div className="absolute inset-0 bg-blue-400/50" />
+                   )}
+                   {/* 最後の移動先のオーバーレイ */}
+                   {isLastMove && !isSelected && (
+                     <div className="absolute inset-0 bg-yellow-400/30" />
+                   )}
+                   {/* 移動可能マーク（空きマス） */}
+                   {isAvailable && !piece && (
+                     <div className="absolute w-3 h-3 rounded-full bg-green-500/60" />
+                   )}
+                   {/* 移動可能マーク（駒がある場合） */}
+                   {isAvailable && piece && (
+                     <div className="absolute inset-0 border-2 border-green-500/60 rounded-sm" />
+                   )}
+ 
+                   {/* 駒画像 - アニメーション中は非表示 */}
+                   {piece && !isAnimatingPiece && !isMoving && !isFlyingPiece && !isHiddenForDrop && (
                     <Image
                       src={getPieceImagePath(pieceFolder, piece.kind, piece.color)}
                       alt={PIECE_DISPLAY[piece.kind]}
@@ -245,19 +257,38 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
         {/* ===== アニメーションレイヤー ===== */}
         
-        {/* 移動中の駒（盤面の上にオーバーレイ） */}
-        {moveAnimation && squareSize > 0 && (
-          <AnimatedPiece
-            animationState={{
-              ...moveAnimation,
-              fromPosition: getSquarePosition(moveAnimation.fromSquareId),
-              toPosition: getSquarePosition(moveAnimation.toSquareId),
-            }}
-            pieceFolder={pieceFolder}
-            squareSize={squareSize}
-            onAnimationComplete={onAnimationComplete}
-            onLanded={handleLanded}
-          />
+        {/* 移動中の駒（アニメーション） */}
+        {moveAnimation && (
+          (() => {
+            let fromPos = { x: 0, y: 0 };
+            const toPos = getSquarePosition(moveAnimation.toSquareId); // 常に存在するはず
+
+            if (moveAnimation.isDrop && moveAnimation.dropStartPosition && boardRef.current) {
+                // ドロップの場合：クライアント座標から盤面相対座標へ変換
+                const boardRect = boardRef.current.getBoundingClientRect();
+                fromPos = {
+                    x: moveAnimation.dropStartPosition.x - boardRect.left,
+                    y: moveAnimation.dropStartPosition.y - boardRect.top
+                };
+            } else {
+                // 通常移動の場合
+                fromPos = getSquarePosition(moveAnimation.fromSquareId);
+            }
+
+            return (
+              <AnimatedPiece
+                animationState={{
+                  ...moveAnimation,
+                  fromPosition: fromPos,
+                  toPosition: toPos,
+                }}
+                pieceFolder={pieceFolder}
+                squareSize={squareSize}
+                onAnimationComplete={onAnimationComplete}
+                onLanded={handleLanded}
+              />
+            );
+          })()
         )}
 
         {/* 弾き飛ばされる駒（着地後に表示） */}

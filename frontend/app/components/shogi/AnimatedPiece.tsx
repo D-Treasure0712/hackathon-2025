@@ -64,6 +64,7 @@ export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
         zIndex: 50,
         filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))',
       }}
+
       initial={{
         x: 0,
         y: 0,
@@ -72,13 +73,13 @@ export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
       animate={{
         x: moveX,
         y: moveY,
-        scale: 1.05, // 少し大きくなる
+        scale: animationState.isDrop ? 1.0 : 1.05, // ドロップ時は拡大しない
       }}
       transition={{
-        type: 'spring',
-        stiffness: 500,
-        damping: 35,
-        mass: 0.6,
+        // ドロップ時は少しゆっくり見せる
+        duration: animationState.isDrop ? 0.6 : 0.4,
+        ease: "easeInOut",
+        type: "tween" // linearな動きで確実に表示
       }}
       onAnimationComplete={() => {
         onCompleteRef.current();
