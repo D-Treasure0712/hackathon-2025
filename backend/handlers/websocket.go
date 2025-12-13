@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// WebSocketアップグレーダーの設定（おまじない）
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -52,6 +53,8 @@ func NewWebSocketHandler(gm *game.GameManager) *WebSocketHandler {
 
 // HandleConnection はWebSocket接続を処理する
 func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// HTTPリクエストをWebSocket接続に切り替える処理。
+	// 成功すると、WebSocket接続オブジェクトが返される。
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocketアップグレードに失敗: %v", err)
@@ -60,6 +63,7 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	defer conn.Close()
 
 	// ゲームIDを取得またはデフォルト生成
+	// WebSocket接続リクエストのクエリパラメータからgameIdを取得し、なければ既定値を返す
 	gameID := r.URL.Query().Get("gameId")
 	if gameID == "" {
 		gameID = "default"

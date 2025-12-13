@@ -12,7 +12,6 @@ services:
     environment:
       - WATCHPACK_POLLING=true # Windowsでのホットリロード対応
     tty: true # コンテナを維持させる
-
   # バックエンド (Go)
   backend:
     build: ./backend
@@ -20,4 +19,4 @@ services:
       - "8080:8080"
     volumes:
       - ./backend:/app
-      - ./AI:/AI
+      # - ./AI:/AI/YaneuraOu-by-gcc-intel # DockerはLinuxコンテナ内で動作するため、macの実行ファイルパスを直接マウントできません。後でLinux用の実行ファイルをビルドしてマウントしてください。
