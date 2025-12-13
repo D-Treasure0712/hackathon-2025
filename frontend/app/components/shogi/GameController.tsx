@@ -74,6 +74,7 @@ export const GameController: React.FC = () => {
           currentPlayer={currentPlayer}
           selectedHandPieceId={selectedHandPieceId}
           onHandPieceClick={onHandPieceClick}
+          pieceFolder={pieceFolder}
         />
       </div>
 
@@ -103,6 +104,7 @@ export const GameController: React.FC = () => {
           currentPlayer={currentPlayer}
           selectedHandPieceId={selectedHandPieceId}
           onHandPieceClick={onHandPieceClick}
+          pieceFolder={pieceFolder}
         />
       </div>
 
