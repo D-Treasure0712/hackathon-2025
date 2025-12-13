@@ -32,7 +32,17 @@ export default function GamePage() {
 
       <main className="relative z-10 flex flex-col items-center justify-center gap-8 w-full max-w-4xl p-4">
         {/* ページタイトル */}
+        <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-md mb-4 hidden">
+          対局画面
+        </h1>
 
+        {/* 
+          GameController: 対局全体を管理
+          - 先手/後手のランダム決定
+          - 盤面・持ち駒・手番の表示
+          - 駒の移動処理
+        */}
+        <GameController />
       </main>
     </div>
   );
