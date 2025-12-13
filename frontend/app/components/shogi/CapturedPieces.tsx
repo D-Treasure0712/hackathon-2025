@@ -26,6 +26,7 @@ interface CapturedPiecesProps {
   currentPlayer: Color; // 現在の手番（操作可能か判定用）
   selectedHandPieceId: string | null;
   onHandPieceClick: (pieceId: string) => void;
+  children?: React.ReactNode;
   pieceFolder: string; // 駒画像フォルダ
 }
 
@@ -35,6 +36,7 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
   currentPlayer,
   selectedHandPieceId,
   onHandPieceClick,
+  children,
   pieceFolder,
 }) => {
   // 対象プレイヤーの持ち駒オブジェクトを取得
@@ -116,6 +118,7 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
       {pieces.length === 0 && (
         <span className="text-sm text-stone-400">なし</span>
       )}
+      {children}
     </div>
   );
 };

@@ -63,6 +63,7 @@ export interface GameBoardProps {
   flyingPiece?: { kind: PieceKind; color: Color; position: { x: number; y: number } } | null;
   onAnimationComplete?: () => void;
   onFlyingComplete?: () => void;
+  children?: React.ReactNode;
 }
 
 // =====================================
@@ -83,6 +84,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   flyingPiece = null,
   onAnimationComplete = () => {},
   onFlyingComplete = () => {},
+  children,
 }) => {
   // 盤面コンテナへの参照（マスサイズ計算用）
   const boardRef = useRef<HTMLDivElement>(null);
@@ -280,6 +282,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             onComplete={() => setShowExplosion(false)}
           />
         )}
+        {children}
       </div>
     </div>
   );
