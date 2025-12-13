@@ -60,7 +60,7 @@ type MoveRecord =
   | { type: 'drop'; toX: number; toY: number; kind: PieceKind };
   
 // 成りのマッピング
-const PROMPTED_KIND_MAP: Partial<Record<PieceKind, PieceKind>> = {
+const PROMOTED_KIND_MAP: Partial<Record<PieceKind, PieceKind>> = {
   'FU': 'TO',
   'KY': 'NY',
   'KE': 'NK',
@@ -248,7 +248,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       phase: 'lifting',
       isDrop: false,
       promote,
-      promotedKind: promote ? (PROMPTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
+      promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
     });
 
     // アニメーション完了時に実行する盤面更新を予約
@@ -553,7 +553,6 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setVersion(v => v + 1);
     setWinner(null);
     setLastMoveToSquareId(null);
-    setSelectedSquareId(null);
     setSelectedSquareId(null);
     setSelectedHandPieceId(null);
     setSelectedHandPiecePosition(null);
