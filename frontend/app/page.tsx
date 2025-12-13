@@ -300,7 +300,7 @@ export default function Home() {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 1 } }} // 1秒かけてフェードアウト
           >
-            <p className="text-black text-xl md:text-2xl font-bold tracking-widest animate-pulse">
+            <p className="text-black text-2xl md:text-4xl font-bold tracking-widest animate-pulse">
               created by 田中角行
             </p>
             {/* クリック待ちであることを伝えるテキストを追加 */}
@@ -308,7 +308,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1.5 }}
-              className="mt-8 text-stone-400 text-sm animate-bounce tracking-widest"
+              className="mt-35 text-stone-400 text-xl md:text-2xl animate-bounce tracking-widest"
             >
                click to start
             </motion.p>
