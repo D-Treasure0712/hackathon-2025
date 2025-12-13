@@ -34,7 +34,6 @@ export const AnimatedPiece: React.FC<AnimatedPieceProps> = ({
   const { fromPosition, toPosition, isCapture } = animationState;
   const onCompleteRef = useRef(onAnimationComplete);
   const onLandedRef = useRef(onLanded);
-
   onCompleteRef.current = onAnimationComplete;
   onLandedRef.current = onLanded;
 
