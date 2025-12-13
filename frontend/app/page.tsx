@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react"; // useRefを追加
 // 🎬 アニメーション用ライブラリ
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
@@ -171,6 +171,10 @@ export default function Home() {
   // クライアントサイドレンダリングが完了したかのフラグ（花びら表示用）
   const [isClient, setIsClient] = useState(false);
 
+  // 🎵 BGM用の状態管理とRef (ここを追加)
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isMuted, setIsMuted] = useState(false); // ミュート状態管理
+
   // 初回マウント時の処理
   useEffect(() => {
     setIsClient(true); // クライアントでの描画開始を記録
@@ -183,6 +187,18 @@ export default function Home() {
     return () => clearTimeout(timer); // クリーンアップ
   }, []);
 
+// 🎵 自動再生ロジック
+  // showIntroがfalseになったら（メイン画面になったら）勝手に再生する
+  useEffect(() => {
+    if (!showIntro && audioRef.current) {
+      audioRef.current.volume = 0.4; // 音量調整
+      audioRef.current.play().catch((e) => {
+        // 万が一ブラウザにブロックされてもエラーで止まらないようにログだけ出す
+        console.log("BGM autoplay prevented:", e);
+      });
+    }
+  }, [showIntro]);
+
   // 🌸 花びらの生成枚数
   const petalCount = 30;
 
@@ -191,6 +207,14 @@ export default function Home() {
     // min-h-svh: モバイルのアドレスバーを考慮した高さ設定
     <div className="relative min-h-svh w-full overflow-hidden text-white font-serif">
       
+      {/* 🎵 BGM用のaudio要素 (ここを追加) */}
+      <audio 
+        ref={audioRef} 
+        src="/sounds/野山.mp3" 
+        loop 
+        preload="auto"
+      />
+
       {/* =================================================================
         Layer 0: 背景画像エリア (Z-index: 0)
         -----------------------------------------------------------------
@@ -280,6 +304,7 @@ export default function Home() {
             initial="hidden"
             animate="visible"
           >
+
             {/* レイアウト調整用コンテナ */}
             <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-4 md:gap-8 md:flex-row md:justify-between flex-grow mt-8 md:mt-0">
               
