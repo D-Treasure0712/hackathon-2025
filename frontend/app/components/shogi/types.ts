@@ -11,7 +11,7 @@
 export type Color = 0 | 1;
 
 /** 駒の種類（shogi.jsの略称に準拠） */
-export type PieceKind = 
+export type PieceKind =
   | 'FU' | 'KY' | 'KE' | 'GI' | 'KI' | 'OU' | 'HI' | 'KA' // 基本
   | 'TO' | 'NY' | 'NK' | 'NG' | 'RY' | 'UM';              // 成り
 
