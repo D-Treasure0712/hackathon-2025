@@ -37,7 +37,7 @@ export const GameOverDialog: React.FC<GameOverDialogProps> = ({
   if (winner === null) return null;
 
   const isWinner = winner === playerNumber;
-  const winnerText = winner === 1 ? '先手' : '後手';
+  const winnerText = winner === 0 ? '先手' : '後手';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
