@@ -15,9 +15,7 @@ export default function GamePage() {
 
       <main className="flex flex-col items-center justify-center gap-8 w-full max-w-2xl">
         {/* ページタイトル */}
-        <h1 className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
-          対局画面
-        </h1>
+
       </main>
       {/* 
         GameController: 対局全体を管理

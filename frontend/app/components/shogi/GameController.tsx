@@ -10,7 +10,9 @@ import { PromotionDialog } from './PromotionDialog';
 import { CheckWarningDialog } from './CheckWarningDialog';
 import { ResignConfirmDialog } from './ResignConfirmDialog';
 import { GameOverDialog } from './GameOverDialog';
+
 import { CheckCutIn } from './CheckCutIn';
+import { GameMenuDialog } from './GameMenuDialog';
 
 /**
  * GameController コンポーネント
@@ -23,7 +25,9 @@ export const GameController: React.FC = () => {
   // ランダムテーマ選択（クライアントサイドでのみ）
   const [pieceFolder, setPieceFolder] = useState<string>('kanji_brown');
   const [boardBg, setBoardBg] = useState<string>('/gameboard/tile_wood1.png');
+
   const [isReady, setIsReady] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     // クライアントサイドでランダム選択
@@ -78,14 +82,33 @@ export const GameController: React.FC = () => {
     <div className="flex flex-col items-center gap-4 w-full max-w-3xl">
 
       {/* 1. 後手（相手）の持ち駒 */}
-      <div className="w-full">
-        <CapturedPieces
-          hands={hands}
-          targetPlayer={1}
-          currentPlayer={currentPlayer}
-          selectedHandPieceId={selectedHandPieceId}
-          onHandPieceClick={onHandPieceClick}
-        />
+      {/* 1. 上部エリア：メニューボタン + 後手（相手）の持ち駒 */}
+      <div className="w-full flex items-start gap-2">
+        {/* メニューボタン */}
+        <button
+          onClick={() => setShowMenu(true)}
+          className="
+            flex-shrink-0 w-10 h-10 mt-2 bg-stone-200 dark:bg-stone-700 
+            rounded border border-stone-400 dark:border-stone-500
+            flex items-center justify-center hover:bg-stone-300 dark:hover:bg-stone-600
+            transition-colors
+          "
+          aria-label="メニュー"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-stone-700 dark:text-stone-300">
+            <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+          </svg>
+        </button>
+
+        <div className="flex-grow">
+          <CapturedPieces
+            hands={hands}
+            targetPlayer={1}
+            currentPlayer={currentPlayer}
+            selectedHandPieceId={selectedHandPieceId}
+            onHandPieceClick={onHandPieceClick}
+          />
+        </div>
       </div>
 
       {/* 2. 手番インジケータ */}
@@ -108,10 +131,29 @@ export const GameController: React.FC = () => {
         moveAnimation={moveAnimation}
         flyingPiece={flyingPiece}
         onAnimationComplete={onAnimationComplete}
-        onFlyingComplete={onFlyingComplete}
-      />
 
-      {/* 4. 先手（自分）の持ち駒 */}
+        onFlyingComplete={onFlyingComplete}
+      >
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className={`
+            absolute -right-24 bottom-0
+            px-3 py-1 rounded font-bold transition-colors
+            flex items-center gap-1
+            ${canUndo
+              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+              : 'bg-stone-300 text-stone-500 cursor-not-allowed'
+            }
+          `}
+          title="一手戻る（待った）"
+        >
+          <span>↩</span> 待った
+        </button>
+      </GameBoard>
+        
+
+      {/* 4. 先手（自分）の持ち駒 + 待ったボタン */}
       <div className="w-full">
         <CapturedPieces
           hands={hands}
@@ -120,47 +162,6 @@ export const GameController: React.FC = () => {
           selectedHandPieceId={selectedHandPieceId}
           onHandPieceClick={onHandPieceClick}
         />
-      </div>
-
-      {/* 5. 操作ボタンエリア */}
-      <div className="flex gap-4 mt-6">
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          className={`
-            px-4 py-2 rounded font-bold transition-colors
-            ${canUndo
-              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }
-          `}
-        >
-          待った
-        </button>
-
-        <button
-          onClick={onResignRequest}
-          disabled={winner !== null}
-          className={`
-            px-4 py-2 rounded font-bold text-white transition-colors
-            ${winner === null
-              ? 'bg-red-500 hover:bg-red-600 shadow-md'
-              : 'bg-gray-300 cursor-not-allowed'
-            }
-          `}
-        >
-          投了
-        </button>
-
-        <button
-          onClick={resetGame}
-          className="
-            px-4 py-2 rounded font-bold text-stone-700 bg-stone-200
-            hover:bg-stone-300 transition-colors shadow-sm
-          "
-        >
-          最初から
-        </button>
       </div>
 
       {/* 6. 成りダイアログ */}
@@ -186,6 +187,14 @@ export const GameController: React.FC = () => {
         winner={winner}
         playerNumber={0}
         onRematch={resetGame}
+      />
+
+      {/* 9. 投了・最初からダイアログ */}
+      <GameMenuDialog
+        isOpen={showMenu}
+        onClose={() => setShowMenu(false)}
+        onResignRequest={onResignRequest}
+        onRestart={resetGame}
       />
 
       {/* 10. 王手カットインアニメーション */}
