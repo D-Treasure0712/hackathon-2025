@@ -187,7 +187,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               const isAnimatingPiece = moveAnimation && moveAnimation.fromSquareId === square.id;
               // 弾き飛ばされる駒は着地後（showFlyingPieceがtrue）に非表示
               // 着地するまでは元の位置に表示しておく
-              const isFlyingPiece = showFlyingPiece && flyingPiece && moveAnimation && 
+              const isFlyingPiece = showFlyingPiece && moveAnimation && 
                 moveAnimation.toSquareId === square.id && moveAnimation.isCapture;
 
                const isMoving =
