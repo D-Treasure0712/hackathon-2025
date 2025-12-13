@@ -3,7 +3,7 @@ name: Deploy to ConoHa VPS
 on:
   push:
     branches:
-      - main  # mainブランチにプッシュされたら動く
+      - dev  # mainブランチにプッシュされたら動く
 
 jobs:
   deploy:
@@ -24,7 +24,7 @@ jobs:
               git clone https://github.com/D-Treasure0712/hackathon-2025.git /root/shogi-app
             else
               cd /root/shogi-app
-              git pull origin main
+              git pull origin dev
             fi
 
             # 2. Docker起動 (ビルド込み)
