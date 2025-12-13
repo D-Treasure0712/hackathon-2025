@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 // shogi.js をインポート (環境に合わせて import 文は調整してください)
 import { Shogi } from 'shogi.js';
-import { Square, Piece, PieceKind, Hand, Color } from '../types';
+import { Square, Piece, PieceKind, Hand, Color, MoveAnimationState } from '../types';
 
 // =====================================
 // 型定義・定数
@@ -60,6 +60,23 @@ export interface UseJShogiReturn {
   availableMoves: Set<string>; // 移動可能なマスのIDセット
   canUndo: boolean; // 待ったが可能かどうか
   onUndo: () => void; // 待った（一手戻す）
+  // アニメーション関連
+  moveAnimation: MoveAnimationState | null;
+  flyingPiece: { kind: PieceKind; color: Color; position: { x: number; y: number } } | null;
+  isAnimating: boolean;
+  onAnimationComplete: () => void;
+  onFlyingComplete: () => void;
+  // 成り演出関連
+  promotionAnimation: {
+    pieceKind: PieceKind;
+    color: Color;
+    squareId: string;
+  } | null;
+  onPromotionAnimationComplete: () => void;
+  // 王手カットイン関連
+  showCheckCutIn: boolean;
+  checkAttacker: Color;
+  onCheckCutInComplete: () => void;
   // WebSocket関連
   isConnected: boolean;
   isAIThinking: boolean;
@@ -113,6 +130,7 @@ function pieceKindToUSI(kind: PieceKind): string {
 }
 
 export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
+  // デプロイ時に変更の可能性あり⚠️
   const { playerColor, useAI = false, wsUrl = 'ws://localhost:8080/ws' } = options;
 
   // shogi.js のインスタンスを保持
@@ -132,6 +150,26 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [lastMoveToSquareId, setLastMoveToSquareId] = useState<string | null>(null);
   const [availableMoves, setAvailableMoves] = useState<Set<string>>(new Set());
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]); // 待った用履歴
+
+  // =====================================
+  // アニメーション状態
+  // =====================================
+  const [moveAnimation, setMoveAnimation] = useState<MoveAnimationState | null>(null);
+  const [flyingPiece, setFlyingPiece] = useState<{ kind: PieceKind; color: Color; position: { x: number; y: number } } | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  // アニメーション中の盤面更新を遅延実行するための保留情報
+  const pendingBoardUpdateRef = useRef<(() => void) | null>(null);
+
+  // 成り演出状態
+  const [promotionAnimation, setPromotionAnimation] = useState<{
+    pieceKind: PieceKind;
+    color: Color;
+    squareId: string;
+  } | null>(null);
+
+  // 王手カットイン状態
+  const [showCheckCutIn, setShowCheckCutIn] = useState(false);
+  const [checkAttacker, setCheckAttacker] = useState<Color>(0);
 
   // WebSocket状態
   const wsRef = useRef<WebSocket | null>(null);
@@ -223,6 +261,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         setIsAIThinking(false);
         break;
 
+      // ゲーム終了処理（まだ未完成だとおもわれ⚠️）
       case 'game_over':
         setGameStatus('game_over');
         setIsAIThinking(false);
@@ -416,9 +455,15 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
   const movePiece = useCallback((fromX: number, fromY: number, toX: number, toY: number, promote: boolean) => {
     const currentTurn = gameRef.current.turn;
+
+    // 移動元の駒を取得
+    const movingPiece = gameRef.current.get(fromX, fromY);
+    if (!movingPiece) return;
+
     // 移動先に駒があるかチェック（unmove用）
     const capturedPiece = gameRef.current.get(toX, toY);
     const capturedKind = capturedPiece ? capturedPiece.kind : undefined;
+    const isCapture = !!capturedPiece;
 
     try {
       // shogi.js の move メソッド
@@ -459,6 +504,63 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       console.error("Move error:", e);
     }
 
+    // =====================================
+    // アニメーション開始
+    // =====================================
+    setIsAnimating(true);
+    setSelectedSquareId(null);
+    setAvailableMoves(new Set());
+    setPendingMove(null);
+    setWaitingForPromotion(false);
+
+    // 弾き飛ばされる駒の情報をセット（駒を取る場合）
+    if (isCapture && capturedPiece) {
+      // 位置はGameBoard側で計算するためここではsquareIdのみ
+      // 実際の位置計算はGameBoardのgetSquarePositionで行う
+      setFlyingPiece({
+        kind: capturedPiece.kind as PieceKind,
+        color: capturedPiece.color as Color,
+        // 位置は一旦ダミー（GameBoard側で上書きされる）
+        position: { x: 0, y: 0 }
+      });
+    }
+
+    // 移動アニメーション状態をセット
+    setMoveAnimation({
+      pieceKind: movingPiece.kind as PieceKind,
+      pieceColor: movingPiece.color as Color,
+      fromSquareId: `${fromX}${fromY}`,
+      toSquareId: `${toX}${toY}`,
+      // 位置は一旦ダミー（GameBoard側で上書きされる）
+      fromPosition: { x: 0, y: 0 },
+      toPosition: { x: 0, y: 0 },
+      isCapture,
+      capturedPiece: capturedPiece ? {
+        kind: capturedPiece.kind as PieceKind,
+        color: capturedPiece.color as Color
+      } : undefined,
+      phase: 'lifting'
+    });
+
+    // アニメーション完了時に実行する盤面更新を予約
+    pendingBoardUpdateRef.current = () => {
+      try {
+        // 実際に盤面を更新
+        gameRef.current.move(fromX, fromY, toX, toY, promote);
+        setLastMoveToSquareId(`${toX}${toY}`);
+
+        // 履歴に記録（待った用）
+        setMoveHistory(prev => [...prev, {
+          type: 'move',
+          fromX, fromY, toX, toY, promote,
+          capturedKind
+        }]);
+
+        setVersion(v => v + 1);
+      } catch (e) {
+        console.error("Move execution error:", e);
+      }
+    };
     setSelectedSquareId(null);
     setAvailableMoves(new Set()); // クリア
     setPendingMove(null);
@@ -512,6 +614,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     if (winner !== null || waitingForPromotion || waitingForResignConfirm) return;
 
     // AI対局モードで、AI思考中またはゲーム終了時はクリック無効
+    // ゲーム終了時の処理は未確認⚠️
     if (useAI && (isAIThinking || gameStatus === 'game_over')) return;
     // AI対局モードで、自分のターンでない場合もクリック無効
     if (useAI && gameRef.current.turn !== playerColor) return;
@@ -651,7 +754,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     const [kind, _] = uniqueId.split('-');
     const currentTurn = gameRef.current.turn;
 
-    // AI対局モードで、AI思考中またはゲーム終了時はクリック無効
+    // AI対局モードで、AI思考中またはゲーム終了時はクリック無効⚠️
     if (useAI && (isAIThinking || gameStatus === 'game_over')) return;
     // AI対局モードで、自分のターンでない場合もクリック無効
     if (useAI && currentTurn !== playerColor) return;
@@ -703,6 +806,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const onResignConfirm = useCallback((confirm: boolean) => {
     if (confirm) {
       setWinner(gameRef.current.turn === 0 ? 1 : 0); // 相手の勝ち
+      // ⚠️
       if (useAI) {
         setGameStatus('game_over');
         setGameResult({
@@ -743,7 +847,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
   // 待った（一手戻す）
   const onUndo = useCallback(() => {
-    // AI対局モードでは待った禁止
+    // AI対局モードでは待った禁止⚠️ここ治す
     if (useAI) return;
     if (moveHistory.length === 0 || winner !== null) return;
 
@@ -774,7 +878,47 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     }
   }, [moveHistory, winner, useAI]);
 
-  const canUndo = !useAI && moveHistory.length > 0 && winner === null;
+  const canUndo = !useAI && moveHistory.length > 0 && winner === null && !isAnimating;
+
+  // =====================================
+  // アニメーション完了ハンドラ
+  // =====================================
+
+  // 移動アニメーション完了時のコールバック
+  const onAnimationComplete = useCallback(() => {
+    // 保留中の盤面更新があれば実行
+    if (pendingBoardUpdateRef.current) {
+      pendingBoardUpdateRef.current();
+      pendingBoardUpdateRef.current = null;
+    }
+    // アニメーション状態をクリア
+    setMoveAnimation(null);
+    setIsAnimating(false);
+
+    // 相手に王手をかけたかチェック
+    const opponent = gameRef.current.turn; // 手番は既に変わっている
+    if (gameRef.current.isCheck(opponent)) {
+      // 王手！カットインを表示
+      const attacker = opponent === 0 ? 1 : 0; // 王手をかけたのは前の手番のプレイヤー
+      setCheckAttacker(attacker as Color);
+      setShowCheckCutIn(true);
+    }
+  }, []);
+
+  // 弾き飛ばしアニメーション完了時のコールバック
+  const onFlyingComplete = useCallback(() => {
+    setFlyingPiece(null);
+  }, []);
+
+  // 成り演出完了コールバック
+  const onPromotionAnimationComplete = useCallback(() => {
+    setPromotionAnimation(null);
+  }, []);
+
+  // 王手カットイン完了コールバック
+  const onCheckCutInComplete = useCallback(() => {
+    setShowCheckCutIn(false);
+  }, []);
 
   return {
     squares,
@@ -798,6 +942,19 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     availableMoves,
     canUndo,
     onUndo,
+    // アニメーション関連
+    moveAnimation,
+    flyingPiece,
+    isAnimating,
+    onAnimationComplete,
+    onFlyingComplete,
+    // 成り演出関連
+    promotionAnimation,
+    onPromotionAnimationComplete,
+    // 王手カットイン関連
+    showCheckCutIn,
+    checkAttacker,
+    onCheckCutInComplete,
     // WebSocket関連
     isConnected,
     isAIThinking,

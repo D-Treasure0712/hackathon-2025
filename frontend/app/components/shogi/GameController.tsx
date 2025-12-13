@@ -1,6 +1,8 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useJShogi } from './hooks/useJShogi';
 import { GameBoard, PIECE_FOLDERS, BOARD_BACKGROUNDS } from './GameBoard';
 import { CapturedPieces } from './CapturedPieces';
@@ -9,6 +11,7 @@ import { PromotionDialog } from './PromotionDialog';
 import { CheckWarningDialog } from './CheckWarningDialog';
 import { ResignConfirmDialog } from './ResignConfirmDialog';
 import { GameOverDialog } from './GameOverDialog';
+import { CheckCutIn } from './CheckCutIn';
 
 /**
  * GameController コンポーネント
@@ -52,6 +55,15 @@ export const GameController: React.FC = () => {
     availableMoves,
     canUndo,
     onUndo,
+    // アニメーション関連
+    moveAnimation,
+    flyingPiece,
+    onAnimationComplete,
+    onFlyingComplete,
+    // 王手カットイン関連
+    showCheckCutIn,
+    checkAttacker,
+    onCheckCutInComplete,
     // WebSocket関連
     isConnected,
     isAIThinking,
@@ -121,13 +133,6 @@ export const GameController: React.FC = () => {
           {getStatusText()}
         </div>
 
-        {/* 定石表示 */}
-        {gameStatus === 'playing' && lastMoveIsBook && (
-          <div className="mt-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 text-sm text-center inline-flex items-center justify-center gap-1 mx-auto">
-            📚 定石からの手
-          </div>
-        )}
-
         {/* 対局開始ボタン（待機中のみ表示） */}
         {gameStatus === 'waiting' && (
           <button
@@ -156,6 +161,7 @@ export const GameController: React.FC = () => {
           currentPlayer={currentPlayer}
           selectedHandPieceId={selectedHandPieceId}
           onHandPieceClick={onHandPieceClick}
+          pieceFolder={pieceFolder}
         />
       </div>
 
@@ -176,13 +182,18 @@ export const GameController: React.FC = () => {
           onSquareClick={onSquareClick}
           pieceFolder={pieceFolder}
           boardBackground={boardBg}
+          // アニメーション関連
+          moveAnimation={moveAnimation}
+          flyingPiece={flyingPiece}
+          onAnimationComplete={onAnimationComplete}
+          onFlyingComplete={onFlyingComplete}
         />
         {/* AI思考中オーバーレイ */}
         {isAIThinking && (
           <div className="absolute inset-0 bg-black/10 dark:bg-white/5 flex items-center justify-center rounded-lg">
             <div className="bg-white dark:bg-zinc-800 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-zinc-700 dark:text-zinc-300">思考中...</span>
+              <span className="text-zinc-700 dark:text-zinc-300">ふじい中...</span>
             </div>
           </div>
         )}
@@ -199,6 +210,7 @@ export const GameController: React.FC = () => {
           currentPlayer={currentPlayer}
           selectedHandPieceId={selectedHandPieceId}
           onHandPieceClick={onHandPieceClick}
+          pieceFolder={pieceFolder}
         />
       </div>
 
@@ -284,6 +296,16 @@ export const GameController: React.FC = () => {
         playerNumber={0} // 先手視点
         onRematch={resetGame}
       />
+
+      {/* 10. 王手カットインアニメーション */}
+      <AnimatePresence>
+        {showCheckCutIn && (
+          <CheckCutIn
+            attackerColor={checkAttacker}
+            onComplete={onCheckCutInComplete}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );
