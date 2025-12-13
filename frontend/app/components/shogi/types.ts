@@ -59,3 +59,37 @@ export interface Position {
   x: number;
   y: number;
 }
+
+// =====================================
+// アニメーション用の型定義
+// =====================================
+
+/** アニメーションのフェーズ */
+export type AnimationPhase =
+  | 'idle'      // 待機中（アニメーションなし）
+  | 'lifting'   // 浮き上がり中
+  | 'moving'    // 移動中
+  | 'landing'   // 着地中（駒を取らない場合）
+  | 'stomping'; // 踏みつけ中（駒を取る場合）
+
+/** 移動アニメーションの状態 */
+export interface MoveAnimationState {
+  /** 移動する駒の種類 */
+  pieceKind: PieceKind;
+  /** 移動する駒の所有者 */
+  pieceColor: Color;
+  /** 移動元のマスID */
+  fromSquareId: string;
+  /** 移動先のマスID */
+  toSquareId: string;
+  /** 移動元のピクセル座標 */
+  fromPosition: { x: number; y: number };
+  /** 移動先のピクセル座標 */
+  toPosition: { x: number; y: number };
+  /** 相手の駒を取るかどうか */
+  isCapture: boolean;
+  /** 取られる駒の情報（ある場合） */
+  capturedPiece?: { kind: PieceKind; color: Color };
+  /** 現在のアニメーションフェーズ */
+  phase: AnimationPhase;
+}
