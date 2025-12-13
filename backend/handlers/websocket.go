@@ -141,6 +141,7 @@ func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move s
 	log.Printf("AI応答: %s (定石: %v)", aiMove, moveResult.IsBookMove)
 
 	// プレイヤーの手で詰んだ場合（aiMoveが"checkmate"）
+	// うまく行ってない
 	if aiMove == "checkmate" {
 		h.sendMessage(conn, ServerMessage{
 			Type:   "game_over",
@@ -169,6 +170,7 @@ func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move s
 	})
 
 	// AIの手でゲーム終了した場合（AIの手でプレイヤーが詰んだ）
+	// うまく行ってない
 	if g.IsOver {
 		h.sendMessage(conn, ServerMessage{
 			Type:   "game_over",
