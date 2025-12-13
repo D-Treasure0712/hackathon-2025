@@ -25,7 +25,7 @@ export interface UseJShogiReturn {
   showCheckWarning: boolean; // 王手警告ダイアログ表示用
   lastMoveToSquareId: string | null;
   onSquareClick: (squareId: string) => void;
-  onHandPieceClick: (uniqueId: string) => void;
+  onHandPieceClick: (uniqueId: string, position?: { x: number, y: number }) => void;
   onPromotionSelect: (promote: boolean) => void;
   onResignRequest: () => void;
   onResignConfirm: (confirm: boolean) => void;
@@ -77,6 +77,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   // UI状態
   const [selectedSquareId, setSelectedSquareId] = useState<string | null>(null);
   const [selectedHandPieceId, setSelectedHandPieceId] = useState<string | null>(null);
+  const [selectedHandPiecePosition, setSelectedHandPiecePosition] = useState<{ x: number, y: number } | null>(null);
   const [waitingForPromotion, setWaitingForPromotion] = useState(false);
   const [pendingMove, setPendingMove] = useState<{ fromX: number, fromY: number, toX: number, toY: number } | null>(null);
   const [waitingForResignConfirm, setWaitingForResignConfirm] = useState(false);
@@ -233,7 +234,8 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         kind: capturedPiece.kind as PieceKind,
         color: capturedPiece.color as Color
       } : undefined,
-      phase: 'lifting'
+      phase: 'lifting',
+      isDrop: false
     });
 
     // アニメーション完了時に実行する盤面更新を予約
@@ -275,21 +277,56 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       }
 
       setLastMoveToSquareId(`${toX}${toY}`);
+      
+      // ドロップ成功時にアニメーション開始
+      if (selectedHandPiecePosition) {
+        setIsAnimating(true);
+        
+        // ドロップアニメーション状態をセット
+        setMoveAnimation({
+          pieceKind: kind,
+          pieceColor: currentTurn, // 現在の手番プレイヤーの色
+          fromSquareId: 'HAND', // ダミーID
+          toSquareId: `${toX}${toY}`,
+          // fromPositionはダミー（GameBoardでクライアント座標から変換）
+          fromPosition: { x: 0, y: 0 }, 
+          toPosition: { x: 0, y: 0 },
+          isCapture: false,
+          phase: 'lifting', // または 'moving'
+          isDrop: true,
+          dropStartPosition: selectedHandPiecePosition
+        });
 
-      // 履歴に記録（待った用）
-      setMoveHistory(prev => [...prev, {
-        type: 'drop',
-        toX, toY, kind
-      }]);
+        // アニメーション完了後の更新を予約（盤面更新自体はstate更新で行われるが、アニメーションと同期させる）
+        // ※ dropの場合はshogi.jsのdropは既に実行済みだが、
+        // アニメーション中は盤面上に駒を表示したくない（AnimatedPieceが飛んでいるため）
+        // GameBoard側で `isAnimatingPiece` 判定に `isDrop` も考慮させる必要がある
+        pendingBoardUpdateRef.current = () => {
+             // 履歴に記録（待った用）
+            setMoveHistory(prev => [...prev, {
+                type: 'drop',
+                toX, toY, kind
+            }]);
+            setVersion(v => v + 1);
+        };
 
-      setVersion(v => v + 1);
+        // 一旦バージョン更新は保留にするため、ここではsetVersionしない
+        // （pendingBoardUpdateRefで実行）
+      } else {
+        // アニメーションなしの場合（通常ありえないが）
+        setMoveHistory(prev => [...prev, {
+            type: 'drop',
+            toX, toY, kind
+        }]);
+        setVersion(v => v + 1);
+      }
     } catch (e) {
       console.error("Drop error:", e);
     }
     setSelectedHandPieceId(null);
     setSelectedSquareId(null);
     setAvailableMoves(new Set()); // クリア
-  }, []);
+  }, [selectedHandPiecePosition]);
 
   // マスクリック
   const onSquareClick = useCallback((squareId: string) => {
@@ -307,8 +344,14 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
     // 1. 持ち駒を選択中 -> 打つ
     if (selectedHandPieceId) {
-      // "FU-0" のようなIDから種類を取得
-      const kind = selectedHandPieceId.split('-')[0] as PieceKind;
+      // "COLOR-KIND-index" (e.g. "0-FU-0") から種類を取得
+      const parts = selectedHandPieceId.split('-');
+      let kind: PieceKind;
+      if (parts.length === 3) {
+        kind = parts[1] as PieceKind;
+      } else {
+        kind = parts[0] as PieceKind;
+      }
       // shogi.js の drop はバリデーション込み
       // 空きマスかチェックなどはライブラリが例外を投げるかfalseを返す
       if (!targetSquare.piece) {
@@ -422,21 +465,26 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       setAvailableMoves(newAvailableMoves);
     }
 
-  }, [squares, selectedSquareId, selectedHandPieceId, winner, waitingForPromotion, waitingForResignConfirm, movePiece, dropPiece]);
+  }, [squares, selectedSquareId, selectedHandPieceId, winner, waitingForPromotion, waitingForResignConfirm, movePiece, dropPiece, selectedHandPiecePosition]);
 
   // 持ち駒クリック
-  const onHandPieceClick = useCallback((uniqueId: string) => {
-    // uniqueId format: "KIND-index"
-    const [kind, _] = uniqueId.split('-');
+  const onHandPieceClick = useCallback((uniqueId: string, position?: { x: number, y: number }) => {
+    // uniqueId format: "COLOR-KIND-index" (e.g. "0-FU-0")
+    // or legacy "KIND-index" (if any)
+    const parts = uniqueId.split('-');
+    let kind: PieceKind;
+    if (parts.length === 3) {
+        kind = parts[1] as PieceKind;
+    } else {
+        kind = parts[0] as PieceKind;
+    }
+    
     const currentTurn = gameRef.current.turn;
-
-    // 現在の手番のプレイヤーの持ち駒のみ選択可能
-    // uniqueIdからcolorを判定するのではなく、CapturedPiecesコンポーネント側で
-    // 既に手番チェックしているため、ここでは手番と持っているかのみチェック
-    // → 実際にはCapturedPieces側でdisabledにしているので、ここでは手番をチェック
-    // → 問題: CapturedPiecesはtargetPlayerとcurrentPlayerを比較してdisabledにしている
-    //   が、このuseJShogi側ではplayerColor（固定値）と比較していた
-    // → 修正: currentTurnプレイヤーの持ち駒であれば選択可能にする
+    
+    // 座標を保存
+    if (position) {
+        setSelectedHandPiecePosition(position);
+    }
 
     setSelectedSquareId(null);
     setAvailableMoves(new Set()); // 盤上選択解除のためにクリア
@@ -445,6 +493,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // 選択解除ならクリア、新規選択なら打てる場所を計算
     if (selectedHandPieceId === uniqueId) {
       setSelectedHandPieceId(null);
+      setSelectedHandPiecePosition(null);
       setAvailableMoves(new Set());
     } else {
       setSelectedHandPieceId(uniqueId);
@@ -492,7 +541,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setWinner(null);
     setLastMoveToSquareId(null);
     setSelectedSquareId(null);
+    setSelectedSquareId(null);
     setSelectedHandPieceId(null);
+    setSelectedHandPiecePosition(null);
     setWaitingForPromotion(false);
     setWaitingForResignConfirm(false);
     setShowCheckWarning(false);

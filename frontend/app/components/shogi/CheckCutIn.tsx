@@ -75,7 +75,7 @@ export const CheckCutIn: React.FC<CheckCutInProps> = ({
                     boxShadow: `0 0 60px ${accentColor}`,
                 }}
                 initial={{ x: '-100%' }}
-                animate={{ x: ['−100%', '0%', '0%', '0%', '100%'] }}
+                animate={{ x: ['-100%', '0%', '0%', '0%', '100%'] }}
                 transition={{
                     duration: 2.2,
                     times: [0, 0.12, 0.5, 0.85, 1],

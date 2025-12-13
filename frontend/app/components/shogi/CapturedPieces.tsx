@@ -25,8 +25,9 @@ interface CapturedPiecesProps {
   targetPlayer: Color; // 表示対象のプレイヤー (0:先手, 1:後手)
   currentPlayer: Color; // 現在の手番（操作可能か判定用）
   selectedHandPieceId: string | null;
-  onHandPieceClick: (pieceId: string) => void;
+  onHandPieceClick: (pieceId: string, position?: { x: number, y: number }) => void;
   pieceFolder: string; // 駒画像フォルダ
+  children?: React.ReactNode;
 }
 
 export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
@@ -69,16 +70,20 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
         const group = groupedPieces[kind];
         if (!group) return null;
 
-        // 選択中かどうか判定
-        const isSelected = selectedHandPieceId?.startsWith(`${kind}-`);
+        // 選択中かどうか判定 (ID: ${targetPlayer}-${kind}-0)
+        const isSelected = selectedHandPieceId === `${targetPlayer}-${kind}-0`;
 
         return (
           <button
             key={kind}
             disabled={!isSelf} // 自分の手番でなければ選択不可
-            onClick={() => {
-              // useJShogi側では "FU-0" などを期待
-              onHandPieceClick(`${kind}-0`);
+            onClick={(e) => {
+              // ボタンの中心座標を計算
+              const rect = e.currentTarget.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              // その種類の駒の0番目のIDを指定してクリックイベント発火 (ID: ${targetPlayer}-${kind}-0)
+              onHandPieceClick(`${targetPlayer}-${kind}-0`, { x: centerX, y: centerY });
             }}
             className={`
               relative px-1 py-1 border rounded shadow-sm
