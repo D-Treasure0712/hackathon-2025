@@ -240,7 +240,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
              // ドロップアニメーション設定
             setMoveAnimation({
                 pieceKind: kind,
-                pieceColor: 1, // AIは常に後手(1) or playerColorの逆? useJShogi({ useAI: true })でAIは逆と仮定
+                pieceColor: playerColor === 0 ? 1 : 0,  //AIの色は常にplayerColorの反対です
                 fromSquareId: 'HAND', 
                 toSquareId: `${toX}${toY}`,
                 fromPosition: { x: 0, y: 0 }, 
@@ -1063,12 +1063,11 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     
     // 待機していたAIの手があれば処理
     if (pendingServerMessage) {
-        // 少し遅延させる
-        setTimeout(() => {
-            const msg = pendingServerMessage;
-            setPendingServerMessage(null);
-            handleServerMessage(msg);
-        }, 100);
+       if (!isAnimatingRef.current) {
+        const msg = pendingServerMessage;
+        setPendingServerMessage(null);
+        handleServerMessage(msg);
+       }
     }
   }, [pendingServerMessage, handleServerMessage, gameStatus]);
 
