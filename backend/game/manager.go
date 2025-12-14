@@ -134,10 +134,9 @@ func (g *Game) PlayMove(playerMove string) (MoveResponse, error) {
 	}
 
 	// プレイヤーの手を履歴に追加
-	// 注: gshogiはパニックを起こす可能性があるため、USIエンジンに検証を任せる
 	g.Moves = append(g.Moves, playerMove)
 
-	// AIの手を取得（AIが不正な手を検知した場合はエラーを返す）
+	// AIの手を取得（エンジンが手の合法性を検証する）
 	position := g.GetPosition()
 	engineResult, err := g.Engine.GetBestMove(position, g.BTime, g.WTime)
 	if err != nil {
@@ -171,6 +170,14 @@ func (g *Game) PlayMove(playerMove string) (MoveResponse, error) {
 
 	// AIの手を履歴に追加
 	g.Moves = append(g.Moves, aiMove)
+
+	// エンジンが「score mate 1」を検出した場合、この手で詰み
+	if engineResult.IsMateIn1 {
+		fmt.Printf("[DEBUG] ★★★ 詰み検出 (IsMateIn1)！ゲーム終了 ★★★\n")
+		g.IsOver = true
+		g.Result = ResultAIWin
+		g.Reason = "checkmate"
+	}
 
 	return result, nil
 }

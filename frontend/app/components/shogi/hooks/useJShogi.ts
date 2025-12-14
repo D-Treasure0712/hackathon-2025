@@ -987,6 +987,11 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setMoveAnimation(null);
     setIsAnimating(false);
 
+    // ゲーム終了時は王手カットインを表示しない（詰みで終わった場合）
+    if (gameStatus === 'game_over') {
+      return;
+    }
+
     // 相手に王手をかけたかチェック
     const opponent = gameRef.current.turn; // 手番は既に変わっている
     if (gameRef.current.isCheck(opponent)) {
@@ -995,7 +1000,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       setCheckAttacker(attacker as Color);
       setShowCheckCutIn(true);
     }
-  }, []);
+  }, [gameStatus]);
 
   // 弾き飛ばしアニメーション完了時のコールバック
   const onFlyingComplete = useCallback(() => {

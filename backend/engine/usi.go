@@ -216,6 +216,7 @@ func (e *USIEngine) Initialize() error {
 type MoveResult struct {
 	Move       string // 最善手
 	IsBookMove bool   // 定石からの手かどうか
+	IsMateIn1  bool   // この手で詰みかどうか（score mate 1）
 }
 
 // GetBestMove は指定局面でAIの最善手を取得する
@@ -238,6 +239,7 @@ func (e *USIEngine) GetBestMove(position string, btime, wtime int) (MoveResult, 
 
 	// bestmove待ち（info stringを監視しながら）
 	isBookMove := false
+	isMateIn1 := false
 	timeout := time.After(120 * time.Second)
 
 	for {
@@ -261,6 +263,13 @@ func (e *USIEngine) GetBestMove(position string, btime, wtime int) (MoveResult, 
 				fmt.Printf("★★★ 定石ヒット! ★★★\n")
 			}
 
+			// 詰みかどうかをチェック
+			// "info ... score mate 1 ..." は1手で詰み
+			if strings.Contains(line, "info") && strings.Contains(line, "score mate 1 ") {
+				isMateIn1 = true
+				fmt.Printf("★★★ 詰み検出 (mate 1) ★★★\n")
+			}
+
 			// bestmoveを受信したら終了
 			if strings.HasPrefix(line, "bestmove") {
 				parts := strings.Fields(line)
@@ -269,6 +278,7 @@ func (e *USIEngine) GetBestMove(position string, btime, wtime int) (MoveResult, 
 				}
 				result.Move = parts[1]
 				result.IsBookMove = isBookMove
+				result.IsMateIn1 = isMateIn1
 				return result, nil
 			}
 		}
