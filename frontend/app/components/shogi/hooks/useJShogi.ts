@@ -169,6 +169,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [moveAnimation, setMoveAnimation] = useState<MoveAnimationState | null>(null);
   const [flyingPiece, setFlyingPiece] = useState<{ kind: PieceKind; color: Color; position: { x: number; y: number } } | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const isAnimatingRef = useRef(false);
   // アニメーション中の盤面更新を遅延実行するための保留情報
   const pendingBoardUpdateRef = useRef<(() => void) | null>(null);
 
@@ -205,122 +206,17 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   // WebSocket通信
   // -------------------------------------------------------
 
-  const connect = useCallback(() => {
-    if (!useAI) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    setGameStatus('connecting');
-    setWsError(null);
 
-    try {
-      const gameId = `game_${Date.now()}`;
-      const ws = new WebSocket(`${wsUrl}?gameId=${gameId}`);
 
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setIsConnected(true);
-        setWsError(null);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message: ServerMessage = JSON.parse(event.data);
-          console.log('Received message:', message);
-          handleServerMessage(message);
-        } catch (e) {
-          console.error('Failed to parse message:', e);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        setIsConnected(false);
-        if (gameStatus !== 'game_over') {
-          setGameStatus('waiting');
-        }
-      };
-
-      ws.onerror = (event) => {
-        console.error('WebSocket error:', event);
-        setWsError('接続エラーが発生しました');
-      };
-
-      wsRef.current = ws;
-    } catch (e) {
-      console.error('Failed to create WebSocket:', e);
-      setWsError('WebSocketの作成に失敗しました');
-      setGameStatus('waiting');
-    }
-  }, [useAI, wsUrl, gameStatus]);
-
-  const disconnect = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  }, []);
-
-  // サーバーメッセージの処理
-  const handleServerMessage = useCallback((message: ServerMessage) => {
-    // アニメーション中はキューに追加して後で処理
-    if (isAnimating) {
-        setPendingServerMessage(message);
-        return;
-    }
-
-    switch (message.type) {
-      case 'game_started':
-        setGameStatus('playing');
-        setIsAIThinking(false);
-        break;
-
-      case 'ai_move':
-        if (message.move) {
-          applyAIMove(message.move);
-          setLastMoveIsBook(message.isBookMove || false);
-        }
-        setIsAIThinking(false);
-        break;
-
-      // ゲーム終了処理（まだ未完成だとおもわれ⚠️）
-      case 'game_over':
-        setGameStatus('game_over');
-        setIsAIThinking(false);
-        if (message.result) {
-          let winnerResult: 'player' | 'ai' | 'draw';
-          if (message.result === 'player_win') {
-            winnerResult = 'player';
-            setWinner(playerColor);
-          } else if (message.result === 'ai_win') {
-            winnerResult = 'ai';
-            setWinner(playerColor === 0 ? 1 : 0);
-          } else {
-            winnerResult = 'draw';
-          }
-          setGameResult({
-            winner: winnerResult,
-            reason: message.reason || '',
-          });
-        }
-        break;
-
-      case 'error':
-        setWsError(message.error || '不明なエラー');
-        setIsAIThinking(false);
-        // 不正な手の場合、プレイヤーの手番に戻す（ローカルでは既に適用済みなので戻す必要あり）
-        if (message.errorType === 'illegal_move') {
-          // 最後の手を取り消す
-          undoLastMove();
-        }
-        break;
-    }
-  }, [playerColor]);
 
   // AIの手を盤面に適用（アニメーション付き）
+
   const applyAIMove = useCallback((moveStr: string) => {
     console.log('Applying AI move:', moveStr);
 
     setIsAnimating(true);
+    isAnimatingRef.current = true;
     setWaitingForPromotion(false);
     setSelectedSquareId(null);
     setAvailableMoves(new Set());
@@ -456,6 +352,63 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     }
   }, [moveHistory]);
 
+  // サーバーメッセージの処理
+  const handleServerMessage = useCallback((message: ServerMessage) => {
+    // アニメーション中はキューに追加して後で処理
+    // ステート(isAnimating)はクロージャ内で古くなる可能性があるため、Refのみを参照して判断する
+    if (isAnimatingRef.current) {
+        setPendingServerMessage(message);
+        return;
+    }
+
+    switch (message.type) {
+      case 'game_started':
+        setGameStatus('playing');
+        setIsAIThinking(false);
+        break;
+
+      case 'ai_move':
+        if (message.move) {
+          applyAIMove(message.move);
+          setLastMoveIsBook(message.isBookMove || false);
+        }
+        setIsAIThinking(false);
+        break;
+
+      // ゲーム終了処理
+      case 'game_over':
+        setGameStatus('game_over');
+        setIsAIThinking(false);
+        if (message.result) {
+          let winnerResult: 'player' | 'ai' | 'draw';
+          if (message.result === 'player_win') {
+            winnerResult = 'player';
+            setWinner(playerColor);
+          } else if (message.result === 'ai_win') {
+            winnerResult = 'ai';
+            setWinner(playerColor === 0 ? 1 : 0);
+          } else {
+            winnerResult = 'draw';
+          }
+          setGameResult({
+            winner: winnerResult,
+            reason: message.reason || '',
+          });
+        }
+        break;
+
+      case 'error':
+        setWsError(message.error || '不明なエラー');
+        setIsAIThinking(false);
+        // 不正な手の場合、プレイヤーの手番に戻す
+        if (message.errorType === 'illegal_move') {
+          // 最後の手を取り消す
+          undoLastMove();
+        }
+        break;
+    }
+  }, [playerColor, applyAIMove, undoLastMove]);
+
   // WebSocketで手を送信
   const sendMove = useCallback((moveStr: string) => {
     if (!useAI) return;
@@ -470,6 +423,61 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setIsAIThinking(true);
     setWsError(null);
   }, [useAI]);
+
+  const connect = useCallback(() => {
+    if (!useAI) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    setGameStatus('connecting');
+    setWsError(null);
+
+    try {
+      const gameId = `game_${Date.now()}`;
+      const ws = new WebSocket(`${wsUrl}?gameId=${gameId}`);
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
+        setWsError(null);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message: ServerMessage = JSON.parse(event.data);
+          console.log('Received message:', message);
+          handleServerMessage(message);
+        } catch (e) {
+          console.error('Failed to parse message:', e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setIsConnected(false);
+        if (gameStatus !== 'game_over') {
+          setGameStatus('waiting');
+        }
+      };
+
+      ws.onerror = (event) => {
+        console.error('WebSocket error:', event);
+        setWsError('接続エラーが発生しました');
+      };
+
+      wsRef.current = ws;
+    } catch (e) {
+      console.error('Failed to create WebSocket:', e);
+      setWsError('WebSocketの作成に失敗しました');
+      setGameStatus('waiting');
+    }
+  }, [useAI, wsUrl, gameStatus, handleServerMessage]);
+
+  const disconnect = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
 
   // クリーンアップ
   useEffect(() => {
@@ -592,6 +600,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // アニメーション開始
     // =====================================
     setIsAnimating(true);
+    isAnimatingRef.current = true;
     setSelectedSquareId(null);
     setAvailableMoves(new Set());
     setPendingMove(null);
@@ -676,6 +685,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         // ドロップ成功時にアニメーション開始
       if (selectedHandPiecePosition) {
         setIsAnimating(true);
+        isAnimatingRef.current = true;
         
         // ドロップアニメーション状態をセット
         setMoveAnimation({
@@ -1034,6 +1044,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // アニメーション状態をクリア
     setMoveAnimation(null);
     setIsAnimating(false);
+    isAnimatingRef.current = false;
 
     // 相手に王手をかけたかチェック
     const opponent = gameRef.current.turn; // 手番は既に変わっている
