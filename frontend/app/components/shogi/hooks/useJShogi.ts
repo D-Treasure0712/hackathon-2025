@@ -204,10 +204,21 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
   const connect = useCallback(() => {
     if (!useAI) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    // 既存の接続がある場合は閉じる（新しいゲームセッションを開始するため）
+    if (wsRef.current) {
+      // oncloseハンドラを無効化して、意図的なクローズでgameStatusが'waiting'に戻らないようにする
+      wsRef.current.onclose = null;
+      if (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
+    }
 
     setGameStatus('connecting');
     setWsError(null);
+    setIsConnected(false);
 
     try {
       const gameId = `game_${Date.now()}`;
@@ -232,9 +243,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       ws.onclose = () => {
         console.log('WebSocket disconnected');
         setIsConnected(false);
-        if (gameStatus !== 'game_over') {
-          setGameStatus('waiting');
-        }
+        // 注意: ここでgameStatusを'waiting'に戻さない
+        // （再接続時にuseEffectが無限ループするのを防ぐため）
+        // gameStatus変更はresetGameなど明示的な操作時のみ行う
       };
 
       ws.onerror = (event) => {
@@ -248,7 +259,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       setWsError('WebSocketの作成に失敗しました');
       setGameStatus('waiting');
     }
-  }, [useAI, wsUrl, gameStatus]);
+  }, [useAI, wsUrl]);
 
   const disconnect = useCallback(() => {
     if (wsRef.current) {
@@ -904,14 +915,13 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setPendingMove(null);
     setAvailableMoves(new Set());
     setMoveHistory([]); // 履歴もクリア
-    // WebSocket状態もリセット
+    // WebSocket状態もリセット（接続は切断しない）
     setGameStatus('waiting');
     setGameResult(null);
     setIsAIThinking(false);
     setWsError(null);
-    // 接続中なら切断
-    disconnect();
-  }, [disconnect]);
+    // 注意: disconnect()は呼び出さない。connect()側で既存接続を閉じて新しい接続を作成する
+  }, []);
 
   // 待った（一手戻す）
   const onUndo = useCallback(() => {

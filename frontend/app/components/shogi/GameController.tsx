@@ -77,6 +77,19 @@ export const GameController: React.FC = () => {
     connect,
   } = useJShogi({ playerColor: 0, useAI: true });
 
+  // コンポーネントマウント時に自動的にAI対局を開始
+  useEffect(() => {
+    if (isReady && gameStatus === 'waiting') {
+      connect();
+    }
+  }, [isReady, gameStatus, connect]);
+
+  // リセットして再接続するラッパー関数（「もう一度対局」「最初から」ボタン用）
+  const resetGameAndConnect = () => {
+    resetGame();
+    // resetGame後にgameStatusが'waiting'になるので、useEffectで自動的にconnectが呼ばれる
+  };
+
   // 準備完了前はローディング表示
   if (!isReady) {
     return (
@@ -88,7 +101,7 @@ export const GameController: React.FC = () => {
 
   // ステータス表示のテキスト
   const getStatusText = () => {
-    if (gameStatus === 'waiting') return 'AIとの対局を開始してください';
+    if (gameStatus === 'waiting') return '接続準備中...';
     if (gameStatus === 'connecting') return '接続中...';
     if (gameStatus === 'game_over') {
       if (gameResult) {
@@ -108,7 +121,7 @@ export const GameController: React.FC = () => {
 
   // ステータス表示のスタイル
   const getStatusStyle = () => {
-    if (gameStatus === 'waiting') return 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400';
+    if (gameStatus === 'waiting') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
     if (gameStatus === 'connecting') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
     if (gameStatus === 'game_over') {
       if (gameResult?.winner === 'player') return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
@@ -135,25 +148,7 @@ export const GameController: React.FC = () => {
         <div className={`px-4 py-3 rounded-lg text-center font-medium ${getStatusStyle()}`}>
           {getStatusText()}
         </div>
-
-        {/* 対局開始ボタン（待機中のみ表示） */}
-        {gameStatus === 'waiting' && (
-          <button
-            onClick={connect}
-            className="
-              w-full mt-3 py-3 px-4 rounded-lg
-              bg-gradient-to-r from-blue-500 to-purple-500
-              text-white font-bold text-lg
-              hover:from-blue-600 hover:to-purple-600
-              transition-all shadow-lg hover:shadow-xl
-            "
-          >
-            🎮 対局開始
-          </button>
-        )}
       </div>
-
-      
 
       {/* 1. 後手（AI）の持ち駒 */}
       <div className="w-full">
@@ -208,22 +203,22 @@ export const GameController: React.FC = () => {
           onAnimationComplete={onAnimationComplete}
           onFlyingComplete={onFlyingComplete}
         >
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          className={`
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={`
             absolute -right-24 bottom-0
             px-3 py-1 rounded font-bold transition-colors
             flex items-center gap-1
             ${canUndo
-              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
-              : 'bg-stone-300 text-stone-500 cursor-not-allowed'
-            }
+                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                : 'bg-stone-300 text-stone-500 cursor-not-allowed'
+              }
           `}
-          title="一手戻る（待った）"
-        >
-          <span>↩</span> 待った
-        </button>
+            title="一手戻る（待った）"
+          >
+            <span>↩</span> 待った
+          </button>
         </GameBoard>
         {/* AI思考中オーバーレイ */}
         {isAIThinking && (
@@ -252,7 +247,7 @@ export const GameController: React.FC = () => {
         />
       </div>
 
-      
+
 
       {/* 接続状態インジケータ */}
       <div className="text-xs text-zinc-400 dark:text-zinc-500">
@@ -292,6 +287,7 @@ export const GameController: React.FC = () => {
         winner={winner}
         playerNumber={0} // 先手視点
         onRematch={resetGame}
+        onConnect={connect}
       />
 
       {/* 9. 投了・最初からダイアログ */}
@@ -300,6 +296,7 @@ export const GameController: React.FC = () => {
         onClose={() => setShowMenu(false)}
         onResignRequest={onResignRequest}
         onRestart={resetGame}
+        onConnect={connect}
       />
 
 
