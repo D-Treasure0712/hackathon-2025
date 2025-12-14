@@ -23,8 +23,9 @@ var upgrader = websocket.Upgrader{
 
 // ClientMessage はクライアントからのメッセージ形式
 type ClientMessage struct {
-	Type string `json:"type"`
-	Move string `json:"move,omitempty"`
+	Type  string `json:"type"` // "move" or "undo"
+	Move  string `json:"move,omitempty"`
+	Count int    `json:"count,omitempty"` // undoの場合、戻す手数
 }
 
 // ServerMessage はサーバーからのメッセージ形式
@@ -107,6 +108,8 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		switch clientMsg.Type {
 		case "move":
 			h.handleMove(conn, g, clientMsg.Move)
+		case "undo":
+			h.handleUndo(conn, g, clientMsg.Count)
 		default:
 			h.sendError(conn, "不明なメッセージタイプです")
 		}
@@ -178,6 +181,25 @@ func (h *WebSocketHandler) handleMove(conn *websocket.Conn, g *game.Game, move s
 			Reason: g.Reason,
 		})
 	}
+}
+
+// handleUndo は待った（手を戻す）を処理する
+func (h *WebSocketHandler) handleUndo(conn *websocket.Conn, g *game.Game, count int) {
+	if count <= 0 {
+		count = 2 // デフォルトは2手（自分とAI）
+	}
+
+	log.Printf("待った: %d手戻す", count)
+	err := g.UndoMoves(count)
+	if err != nil {
+		h.sendErrorWithType(conn, err.Error(), "undo_error")
+		return
+	}
+
+	// 成功を通知
+	h.sendMessage(conn, ServerMessage{
+		Type: "undo_complete",
+	})
 }
 
 // sendMessage はメッセージを送信する

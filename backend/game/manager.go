@@ -24,7 +24,7 @@ type Game struct {
 	Moves  []string // USI形式の手履歴
 	Engine *engine.USIEngine
 	Board  *ShogiBoard // gshogiによる盤面管理
-	IsOver bool // 対局終了フラグ
+	IsOver bool        // 対局終了フラグ
 	Result GameResult
 	Reason string // 終了理由: "resign", "checkmate", "rep_draw", "win"
 	BTime  int    // 先手残り時間（ミリ秒）
@@ -51,7 +51,7 @@ func NewGameManager(enginePath, evalDir string) *GameManager {
 
 // NewGame は新しい対局を開始する
 func (gm *GameManager) NewGame(gameID string) (*Game, error) {
-	gm.mu.Lock() // 排他制御
+	gm.mu.Lock()         // 排他制御
 	defer gm.mu.Unlock() // 関数終了時にロックを解放
 
 	// 既存のゲームがあれば終了
@@ -173,6 +173,28 @@ func (g *Game) PlayMove(playerMove string) (MoveResponse, error) {
 	g.Moves = append(g.Moves, aiMove)
 
 	return result, nil
+}
+
+// UndoMoves は指定した手数分の手を取り消す
+func (g *Game) UndoMoves(count int) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.IsOver {
+		return fmt.Errorf("対局は既に終了しています")
+	}
+
+	if count <= 0 {
+		return fmt.Errorf("戻す手数は1以上である必要があります")
+	}
+
+	if len(g.Moves) < count {
+		return fmt.Errorf("履歴が足りません（現在: %d手）", len(g.Moves))
+	}
+
+	// 履歴から指定した手数分を削除
+	g.Moves = g.Moves[:len(g.Moves)-count]
+	return nil
 }
 
 // Close は対局を終了しリソースを解放する
