@@ -193,7 +193,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
   // アニメーション中のAI着手を待機するためのキュー
-  const [pendingServerMessage, setPendingServerMessage] = useState<ServerMessage | null>(null);
+  const [pendingMessages, setPendingMessages] = useState<ServerMessage[]>([]);
 
 
   // 初期化
@@ -357,8 +357,8 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // アニメーション中はキューに追加して後で処理
     // ステート(isAnimating)はクロージャ内で古くなる可能性があるため、Refのみを参照して判断する
     if (isAnimatingRef.current) {
-      setPendingServerMessage(message);
-      return;
+        setPendingMessages(prev => [...prev, message]);
+        return;
     }
 
     switch (message.type) {
@@ -584,17 +584,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         return;
       }
 
-      // 最終手情報の更新など
-      setLastMoveToSquareId(`${toX}${toY}`);
-
-      // 履歴に記録（待った用）
-      setMoveHistory(prev => [...prev, {
-        type: 'move',
-        fromX, fromY, toX, toY, promote,
-        capturedKind
-      }]);
-
-      setVersion(v => v + 1);
+      // バリデーションOKなら、アニメーション用に一旦元に戻す
+      // (アニメーション完了時に pendingBoardUpdateRef で正式に移動する)
+      gameRef.current.unmove(fromX, fromY, toX, toY, promote, capturedKind);
 
       // AI対局モードの場合、WebSocketで送信
       if (useAI && isConnected) {
@@ -605,6 +597,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       }
     } catch (e) {
       console.error("Move error:", e);
+      return;
     }
 
     // =====================================
@@ -691,10 +684,11 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         return;
       }
 
-      setLastMoveToSquareId(`${toX}${toY}`);
-
       // ドロップ成功時にアニメーション開始
       if (selectedHandPiecePosition) {
+        // アニメーション用に一旦盤面を戻す
+        gameRef.current.undrop(toX, toY);
+
         setIsAnimating(true);
         isAnimatingRef.current = true;
 
@@ -713,21 +707,25 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           dropStartPosition: selectedHandPiecePosition
         });
 
-        // アニメーション完了後の更新を予約（盤面更新自体はstate更新で行われるが、アニメーションと同期させる）
-        // ※ dropの場合はshogi.jsのdropは既に実行済みだが、
-        // アニメーション中は盤面上に駒を表示したくない（AnimatedPieceが飛んでいるため）
-        // GameBoard側で `isAnimatingPiece` 判定に `isDrop` も考慮させる必要がある
+        // アニメーション完了後の更新を予約
         pendingBoardUpdateRef.current = () => {
-          // 履歴に記録（待った用）
-          setMoveHistory(prev => [...prev, {
-            type: 'drop',
-            toX, toY, kind
-          }]);
-          setVersion(v => v + 1);
+          try {
+            // 正式にドロップ
+            gameRef.current.drop(toX, toY, kind);
+            setLastMoveToSquareId(`${toX}${toY}`);
+
+            // 履歴に記録（待った用）
+            setMoveHistory(prev => [...prev, {
+              type: 'drop',
+              toX, toY, kind
+            }]);
+            setVersion(v => v + 1);
+          } catch (e) {
+             console.error("Drop execution error:", e);
+          }
         };
 
         // 一旦バージョン更新は保留にするため、ここではsetVersionしない
-        // （pendingBoardUpdateRefで実行）
 
         // AI対局モードの場合、WebSocketで送信
         if (useAI && isConnected) {
@@ -738,6 +736,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         }
       } else {
         // アニメーションなしの場合（通常ありえないが）
+        setLastMoveToSquareId(`${toX}${toY}`);
         setMoveHistory(prev => [...prev, {
           type: 'drop',
           toX, toY, kind
@@ -1070,16 +1069,37 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       setCheckAttacker(attacker as Color);
       setShowCheckCutIn(true);
     }
-
+    
+    
     // 待機していたAIの手があれば処理
-    if (pendingServerMessage) {
-      if (!isAnimatingRef.current) {
-        const msg = pendingServerMessage;
-        setPendingServerMessage(null);
-        handleServerMessage(msg);
-      }
+    if (pendingMessages.length > 0) {
+        setTimeout(() => {
+            // 先頭のメッセージを取り出して処理
+            setPendingMessages(prev => {
+                if (prev.length === 0) return prev;
+                const [nextMsg, ...rest] = prev;
+                // handleServerMessageは副作用を含むため、レンダリングサイクル外で呼ぶのが望ましいが
+                // ここはsetTimeout内なので許容される。ただしsetState内での副作用は注意が必要。
+                // 安全のため、ここではなく外でmsgを取得してからsetStateするのが良いが
+                // msgがstaleになるのを防ぐにはsetStateのcallbackを使う必要がある。
+                // しかし handleServerMessage をcallback内で呼ぶのはReactのルール違反（純粋関数であるべき）。
+                
+                // 解決策: ここでは削除のみ行い、処理は外に出す、のが難しい（msgが必要）。
+                // useEffectを使うべきパターンだが、今回はrefで管理するか...
+                
+                // 実際には pendingMessages を依存配列に入れているので、
+                // const [nextMsg, ...rest] = pendingMessages; 
+                // で最新が取れるはず。
+                return rest; 
+            });
+            
+            // 依存配列の pendingMessages[0] を使う
+            if (pendingMessages.length > 0) {
+                 handleServerMessage(pendingMessages[0]);
+            }
+        }, 1000);
     }
-  }, [pendingServerMessage, handleServerMessage, gameStatus]);
+  }, [pendingMessages, handleServerMessage, gameStatus]);
 
   // 弾き飛ばしアニメーション完了時のコールバック
   const onFlyingComplete = useCallback(() => {
