@@ -1,0 +1,20 @@
+package main
+
+// CPU Configuration
+// 使用するCPUアーキテクチャに対応する行のコメントを外してください。
+// 一度に有効にできるのは1つだけです。
+//
+// ★ このファイルを config.go にコピーして使用してください ★
+//    cp config.go.example config.go
+
+// === Docker環境（推奨） ===
+const EngineBinary = "YaneuraOu-by-gcc-docker"
+
+// === macOS (Apple Silicon / ARM) - ローカル開発用 ===
+// const EngineBinary = "YaneuraOu-by-gcc-mac"
+
+// === Intel CPU (Linux) ===
+// const EngineBinary = "YaneuraOu-by-gcc-intel"
+
+// === AMD Ryzen CPU (Windows) ===
+// const EngineBinary = "YaneuraOu-by-gcc-ryzen.exe"
