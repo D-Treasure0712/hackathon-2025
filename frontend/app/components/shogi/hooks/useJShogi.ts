@@ -169,6 +169,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [moveAnimation, setMoveAnimation] = useState<MoveAnimationState | null>(null);
   const [flyingPiece, setFlyingPiece] = useState<{ kind: PieceKind; color: Color; position: { x: number; y: number } } | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const isAnimatingRef = useRef(false);
   // アニメーション中の盤面更新を遅延実行するための保留情報
   const pendingBoardUpdateRef = useRef<(() => void) | null>(null);
 
@@ -191,6 +192,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [gameStatus, setGameStatus] = useState<'waiting' | 'connecting' | 'playing' | 'game_over'>('waiting');
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
+  // アニメーション中のAI着手を待機するためのキュー
+  const [pendingServerMessage, setPendingServerMessage] = useState<ServerMessage | null>(null);
+
 
   // 初期化
   useEffect(() => {
@@ -201,6 +205,224 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   // -------------------------------------------------------
   // WebSocket通信
   // -------------------------------------------------------
+
+
+
+
+
+  // AIの手を盤面に適用（アニメーション付き）
+
+  const applyAIMove = useCallback((moveStr: string) => {
+    console.log('Applying AI move:', moveStr);
+
+    setIsAnimating(true);
+    isAnimatingRef.current = true;
+    setWaitingForPromotion(false);
+    setSelectedSquareId(null);
+    setAvailableMoves(new Set());
+
+    if (moveStr.includes('*')) {
+      // 駒打ち: P*5e
+      const pieceChar = moveStr[0].toUpperCase();
+      const toUSI = moveStr.substring(2, 4);
+      const toSquareId = usiToSquareId(toUSI);
+
+      if (toSquareId) {
+        const toX = parseInt(toSquareId[0]);
+        const toY = parseInt(toSquareId[1]);
+
+        const usiToPieceKind: Record<string, PieceKind> = {
+          'P': 'FU', 'L': 'KY', 'N': 'KE', 'S': 'GI', 'G': 'KI', 'B': 'KA', 'R': 'HI',
+        };
+        const kind = usiToPieceKind[pieceChar];
+
+        if (kind) {
+          // ドロップアニメーション設定
+          setMoveAnimation({
+            pieceKind: kind,
+            pieceColor: playerColor === 0 ? 1 : 0,  //AIの色は常にplayerColorの反対です
+            fromSquareId: 'HAND',
+            toSquareId: `${toX}${toY}`,
+            fromPosition: { x: 0, y: 0 },
+            toPosition: { x: 0, y: 0 },
+            isCapture: false,
+            phase: 'lifting',
+            isDrop: true,
+            // AIのドロップ位置は画面上部中央などを想定（GameBoardで調整が必要かも）
+            // 一旦適当な値を入れるが、GameBoard側でAIの手の場合は上部から飛んでくるようにすると良い
+            // ここではNullにしておいてGameBoardでハンドリングするか、固定値を入れる
+            dropStartPosition: { x: window.innerWidth / 2, y: 0 }
+          });
+
+          pendingBoardUpdateRef.current = () => {
+            try {
+              gameRef.current.drop(toX, toY, kind);
+              setLastMoveToSquareId(`${toX}${toY}`);
+              setVersion(v => v + 1);
+            } catch (e) {
+              console.error('AI drop error:', e);
+            }
+          };
+        }
+      }
+    } else {
+      // 通常の移動
+      const fromUSI = moveStr.substring(0, 2);
+      const toUSI = moveStr.substring(2, 4);
+      const promote = moveStr.length > 4 && moveStr[4] === '+';
+
+      const fromSquareId = usiToSquareId(fromUSI);
+      const toSquareId = usiToSquareId(toUSI);
+
+      if (fromSquareId && toSquareId) {
+        const fromX = parseInt(fromSquareId[0]);
+        const fromY = parseInt(fromSquareId[1]);
+        const toX = parseInt(toSquareId[0]);
+        const toY = parseInt(toSquareId[1]);
+
+        const movingPiece = gameRef.current.get(fromX, fromY);
+        const capturedPiece = gameRef.current.get(toX, toY);
+        const isCapture = !!capturedPiece;
+
+        if (movingPiece) {
+          // アニメーション設定
+          if (isCapture && capturedPiece) {
+            setFlyingPiece({
+              kind: capturedPiece.kind as PieceKind,
+              color: capturedPiece.color as Color,
+              position: { x: 0, y: 0 }
+            });
+          }
+
+          setMoveAnimation({
+            pieceKind: movingPiece.kind as PieceKind,
+            pieceColor: movingPiece.color as Color,
+            fromSquareId: `${fromX}${fromY}`,
+            toSquareId: `${toX}${toY}`,
+            fromPosition: { x: 0, y: 0 },
+            toPosition: { x: 0, y: 0 },
+            isCapture,
+            capturedPiece: capturedPiece ? {
+              kind: capturedPiece.kind as PieceKind,
+              color: capturedPiece.color as Color
+            } : undefined,
+            phase: 'lifting',
+            isDrop: false,
+            promote,
+            promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
+          });
+
+          pendingBoardUpdateRef.current = () => {
+            try {
+              gameRef.current.move(fromX, fromY, toX, toY, promote);
+              setLastMoveToSquareId(`${toX}${toY}`);
+              setVersion(v => v + 1);
+            } catch (e) {
+              console.error('AI move error:', e);
+            }
+          };
+        }
+      }
+    }
+  }, []);
+
+  // 最後の手を取り消す（エラー時用）
+  const undoLastMove = useCallback(() => {
+    if (moveHistory.length === 0) return;
+
+    const lastMove = moveHistory[moveHistory.length - 1];
+
+    try {
+      if (lastMove.type === 'move') {
+        gameRef.current.unmove(
+          lastMove.fromX, lastMove.fromY,
+          lastMove.toX, lastMove.toY,
+          lastMove.promote,
+          lastMove.capturedKind
+        );
+      } else {
+        gameRef.current.undrop(lastMove.toX, lastMove.toY);
+      }
+
+      setMoveHistory(prev => prev.slice(0, -1));
+      setLastMoveToSquareId(null);
+      setVersion(v => v + 1);
+    } catch (e) {
+      console.error('Undo error:', e);
+    }
+  }, [moveHistory]);
+
+  // サーバーメッセージの処理
+  const handleServerMessage = useCallback((message: ServerMessage) => {
+    // アニメーション中はキューに追加して後で処理
+    // ステート(isAnimating)はクロージャ内で古くなる可能性があるため、Refのみを参照して判断する
+    if (isAnimatingRef.current) {
+      setPendingServerMessage(message);
+      return;
+    }
+
+    switch (message.type) {
+      case 'game_started':
+        setGameStatus('playing');
+        setIsAIThinking(false);
+        break;
+
+      case 'ai_move':
+        if (message.move) {
+          applyAIMove(message.move);
+          setLastMoveIsBook(message.isBookMove || false);
+        }
+        setIsAIThinking(false);
+        break;
+
+      // ゲーム終了処理
+      case 'game_over':
+        setGameStatus('game_over');
+        setIsAIThinking(false);
+        if (message.result) {
+          let winnerResult: 'player' | 'ai' | 'draw';
+          if (message.result === 'player_win') {
+            winnerResult = 'player';
+            setWinner(playerColor);
+          } else if (message.result === 'ai_win') {
+            winnerResult = 'ai';
+            setWinner(playerColor === 0 ? 1 : 0);
+          } else {
+            winnerResult = 'draw';
+          }
+          setGameResult({
+            winner: winnerResult,
+            reason: message.reason || '',
+          });
+        }
+        break;
+
+      case 'error':
+        setWsError(message.error || '不明なエラー');
+        setIsAIThinking(false);
+        // 不正な手の場合、プレイヤーの手番に戻す
+        if (message.errorType === 'illegal_move') {
+          // 最後の手を取り消す
+          undoLastMove();
+        }
+        break;
+    }
+  }, [playerColor, applyAIMove, undoLastMove]);
+
+  // WebSocketで手を送信
+  const sendMove = useCallback((moveStr: string) => {
+    if (!useAI) return;
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setWsError('接続されていません');
+      return;
+    }
+
+    const message: ClientMessage = { type: 'move', move: moveStr };
+    wsRef.current.send(JSON.stringify(message));
+    console.log('Sent move:', moveStr);
+    setIsAIThinking(true);
+    setWsError(null);
+  }, [useAI]);
 
   const connect = useCallback(() => {
     if (!useAI) return;
@@ -259,7 +481,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       setWsError('WebSocketの作成に失敗しました');
       setGameStatus('waiting');
     }
-  }, [useAI, wsUrl]);
+  }, [useAI, wsUrl, gameStatus, handleServerMessage]);
 
   const disconnect = useCallback(() => {
     if (wsRef.current) {
@@ -267,152 +489,6 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       wsRef.current = null;
     }
   }, []);
-
-  // サーバーメッセージの処理
-  const handleServerMessage = useCallback((message: ServerMessage) => {
-    switch (message.type) {
-      case 'game_started':
-        setGameStatus('playing');
-        setIsAIThinking(false);
-        break;
-
-      case 'ai_move':
-        if (message.move) {
-          applyAIMove(message.move);
-          setLastMoveIsBook(message.isBookMove || false);
-        }
-        setIsAIThinking(false);
-        break;
-
-      // ゲーム終了処理（まだ未完成だとおもわれ⚠️）
-      case 'game_over':
-        setGameStatus('game_over');
-        setIsAIThinking(false);
-        if (message.result) {
-          let winnerResult: 'player' | 'ai' | 'draw';
-          if (message.result === 'player_win') {
-            winnerResult = 'player';
-            setWinner(playerColor);
-          } else if (message.result === 'ai_win') {
-            winnerResult = 'ai';
-            setWinner(playerColor === 0 ? 1 : 0);
-          } else {
-            winnerResult = 'draw';
-          }
-          setGameResult({
-            winner: winnerResult,
-            reason: message.reason || '',
-          });
-        }
-        break;
-
-      case 'error':
-        setWsError(message.error || '不明なエラー');
-        setIsAIThinking(false);
-        // 不正な手の場合、プレイヤーの手番に戻す（ローカルでは既に適用済みなので戻す必要あり）
-        if (message.errorType === 'illegal_move') {
-          // 最後の手を取り消す
-          undoLastMove();
-        }
-        break;
-    }
-  }, [playerColor]);
-
-  // AIの手を盤面に適用
-  const applyAIMove = useCallback((moveStr: string) => {
-    console.log('Applying AI move:', moveStr);
-
-    if (moveStr.includes('*')) {
-      // 駒打ち: P*5e
-      const pieceChar = moveStr[0].toUpperCase();
-      const toUSI = moveStr.substring(2, 4);
-      const toSquareId = usiToSquareId(toUSI);
-
-      if (toSquareId) {
-        const toX = parseInt(toSquareId[0]);
-        const toY = parseInt(toSquareId[1]);
-
-        // USI文字からPieceKindに変換
-        const usiToPieceKind: Record<string, PieceKind> = {
-          'P': 'FU', 'L': 'KY', 'N': 'KE', 'S': 'GI', 'G': 'KI', 'B': 'KA', 'R': 'HI',
-        };
-        const kind = usiToPieceKind[pieceChar];
-        if (kind) {
-          try {
-            gameRef.current.drop(toX, toY, kind);
-            setLastMoveToSquareId(`${toX}${toY}`);
-            setVersion(v => v + 1);
-          } catch (e) {
-            console.error('AI drop error:', e);
-          }
-        }
-      }
-    } else {
-      // 通常の移動
-      const fromUSI = moveStr.substring(0, 2);
-      const toUSI = moveStr.substring(2, 4);
-      const promote = moveStr.length > 4 && moveStr[4] === '+';
-
-      const fromSquareId = usiToSquareId(fromUSI);
-      const toSquareId = usiToSquareId(toUSI);
-
-      if (fromSquareId && toSquareId) {
-        const fromX = parseInt(fromSquareId[0]);
-        const fromY = parseInt(fromSquareId[1]);
-        const toX = parseInt(toSquareId[0]);
-        const toY = parseInt(toSquareId[1]);
-
-        try {
-          gameRef.current.move(fromX, fromY, toX, toY, promote);
-          setLastMoveToSquareId(`${toX}${toY}`);
-          setVersion(v => v + 1);
-        } catch (e) {
-          console.error('AI move error:', e);
-        }
-      }
-    }
-  }, []);
-
-  // 最後の手を取り消す（エラー時用）
-  const undoLastMove = useCallback(() => {
-    if (moveHistory.length === 0) return;
-
-    const lastMove = moveHistory[moveHistory.length - 1];
-
-    try {
-      if (lastMove.type === 'move') {
-        gameRef.current.unmove(
-          lastMove.fromX, lastMove.fromY,
-          lastMove.toX, lastMove.toY,
-          lastMove.promote,
-          lastMove.capturedKind
-        );
-      } else {
-        gameRef.current.undrop(lastMove.toX, lastMove.toY);
-      }
-
-      setMoveHistory(prev => prev.slice(0, -1));
-      setLastMoveToSquareId(null);
-      setVersion(v => v + 1);
-    } catch (e) {
-      console.error('Undo error:', e);
-    }
-  }, [moveHistory]);
-
-  // WebSocketで手を送信
-  const sendMove = useCallback((moveStr: string) => {
-    if (!useAI) return;
-    if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      setWsError('接続されていません');
-      return;
-    }
-
-    const message: ClientMessage = { type: 'move', move: moveStr };
-    wsRef.current.send(JSON.stringify(message));
-    console.log('Sent move:', moveStr);
-    setIsAIThinking(true);
-    setWsError(null);
-  }, [useAI]);
 
   // クリーンアップ
   useEffect(() => {
@@ -483,6 +559,10 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     const movingPiece = gameRef.current.get(fromX, fromY);
     if (!movingPiece) return;
 
+    // 参照による変更を防ぐためプリミティブ値として保存
+    const movingPieceKind = movingPiece.kind;
+    const movingPieceColor = movingPiece.color;
+
     // 移動先に駒があるかチェック（unmove用）
     const capturedPiece = gameRef.current.get(toX, toY);
     const capturedKind = capturedPiece ? capturedPiece.kind : undefined;
@@ -531,6 +611,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // アニメーション開始
     // =====================================
     setIsAnimating(true);
+    isAnimatingRef.current = true;
     setSelectedSquareId(null);
     setAvailableMoves(new Set());
     setPendingMove(null);
@@ -550,8 +631,8 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
     // 移動アニメーション状態をセット
     setMoveAnimation({
-      pieceKind: movingPiece.kind as PieceKind,
-      pieceColor: movingPiece.color as Color,
+      pieceKind: movingPieceKind as PieceKind,
+      pieceColor: movingPieceColor as Color,
       fromSquareId: `${fromX}${fromY}`,
       toSquareId: `${toX}${toY}`,
       // 位置は一旦ダミー（GameBoard側で上書きされる）
@@ -565,7 +646,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       phase: 'lifting',
       isDrop: false,
       promote,
-      promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
+      promotedKind: promote ? (PROMOTED_KIND_MAP[movingPieceKind as PieceKind] || movingPieceKind as PieceKind) : undefined
     });
 
     // アニメーション完了時に実行する盤面更新を予約
@@ -615,6 +696,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       // ドロップ成功時にアニメーション開始
       if (selectedHandPiecePosition) {
         setIsAnimating(true);
+        isAnimatingRef.current = true;
 
         // ドロップアニメーション状態をセット
         setMoveAnimation({
@@ -972,6 +1054,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     // アニメーション状態をクリア
     setMoveAnimation(null);
     setIsAnimating(false);
+    isAnimatingRef.current = false;
 
     // ゲーム終了時は王手カットインを表示しない（詰みで終わった場合）
     if (gameStatus === 'game_over') {
@@ -982,11 +1065,21 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     const opponent = gameRef.current.turn; // 手番は既に変わっている
     if (gameRef.current.isCheck(opponent)) {
       // 王手！カットインを表示
+
       const attacker = opponent === 0 ? 1 : 0; // 王手をかけたのは前の手番のプレイヤー
       setCheckAttacker(attacker as Color);
       setShowCheckCutIn(true);
     }
-  }, [gameStatus]);
+
+    // 待機していたAIの手があれば処理
+    if (pendingServerMessage) {
+      if (!isAnimatingRef.current) {
+        const msg = pendingServerMessage;
+        setPendingServerMessage(null);
+        handleServerMessage(msg);
+      }
+    }
+  }, [pendingServerMessage, handleServerMessage, gameStatus]);
 
   // 弾き飛ばしアニメーション完了時のコールバック
   const onFlyingComplete = useCallback(() => {

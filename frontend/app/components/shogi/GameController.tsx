@@ -1,6 +1,7 @@
 
 'use client';
 
+import Image from "next/image";
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useJShogi } from './hooks/useJShogi';
@@ -220,12 +221,23 @@ export const GameController: React.FC = () => {
             <span>↩</span> 待った
           </button>
         </GameBoard>
+
         {/* AI思考中オーバーレイ */}
         {isAIThinking && (
-          <div className="absolute inset-0 bg-black/10 dark:bg-white/5 flex items-center justify-center rounded-lg">
-            <div className="bg-white dark:bg-zinc-800 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-zinc-700 dark:text-zinc-300">ふじい中...</span>
+          // z-10 を追加して確実に他の要素の上に表示させます
+          <div className="absolute inset-0 bg-black/20 dark:bg-black/40 flex items-center justify-left rounded-lg z-10">
+            {/* 画像に合わせてコンテナのスタイルを調整 */}
+            {/* animate-pulse を追加して、考えているようにゆっくり点滅させます */}
+            <div className="dark:bg-zinc-800 p-3 translate-x-[-300px] rounded-full shadow-xl animate-pulse">
+              <Image
+                src="/images/hujii2.png" // ここに画像のパスを指定します
+                alt="ふじい君考え中..."
+                width={100}  // 画像の幅を指定（適切に調整してください）
+                height={100} // 画像の高さを指定（適切に調整してください）
+                className="object-contain drop-shadow-xl"
+              />
+              {/* もしテキストも下に表示したい場合は、以下のコメントを解除してください */}
+              {/* <p className="text-center text-sm text-zinc-700 dark:text-zinc-300 mt-2 font-bold">ふじい中...</p> */}
             </div>
           </div>
         )}
