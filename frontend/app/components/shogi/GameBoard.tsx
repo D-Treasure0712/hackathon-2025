@@ -198,10 +198,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   moveAnimation.fromSquareId === square.id &&
                   moveAnimation.isCapture === false;
 
-               // ドロップアニメーション中、移動先マスに既に駒データが入ってしまっているので隠す
-               const isHiddenForDrop = 
+
+               // アニメーション中、移動先マスに既に駒データが入ってしまっている場合（AIの即時反映やステート更新後）は隠す
+               const isHiddenDestination = 
                   moveAnimation && 
-                  moveAnimation.isDrop && 
                   moveAnimation.toSquareId === square.id;
 
                return (
@@ -240,7 +240,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                    )}
  
                    {/* 駒画像 - アニメーション中は非表示 */}
-                   {piece && !isAnimatingPiece && !isMoving && !isFlyingPiece && !isHiddenForDrop && (
+                   {piece && !isAnimatingPiece && !isMoving && !isFlyingPiece && !isHiddenDestination && (
                     <Image
                       src={getPieceImagePath(pieceFolder, piece.kind, piece.color)}
                       alt={PIECE_DISPLAY[piece.kind]}
