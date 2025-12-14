@@ -960,8 +960,13 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       // AI対局モードの場合、バックエンドにもundo送信
       if (useAI && wsRef.current?.readyState === WebSocket.OPEN) {
         const undoMessage = { type: 'undo', count: movesToUndo };
-        wsRef.current.send(JSON.stringify(undoMessage));
-        console.log('Sent undo to backend:', undoMessage);
+        try {
+          wsRef.current.send(JSON.stringify(undoMessage));
+          console.log('Sent undo to backend:', undoMessage);
+        } catch (sendError) {
+          console.error('Failed to send undo to backend:', sendError);
+          // Optionally, notify the user or set a state here
+        }
       }
     } catch (e) {
       console.error("Undo error:", e);
