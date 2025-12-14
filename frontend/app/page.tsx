@@ -223,7 +223,7 @@ export default function Home() {
         >
           <Image
             src="/images/pc_title_background.png"
-            alt="PC"
+            alt="PC用背景画像"
             fill
             priority
             style={{ objectFit: "cover" }}
@@ -387,7 +387,7 @@ export default function Home() {
                 >
                   <Image
                     src="/images/start-button.png"
-                    alt="対局開始"
+                    alt="対局開始ボタン"
                     fill
                     style={{ objectFit: "contain" }}
                     className="drop-shadow-lg group-hover:drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] transition-all translate-y-[30px]"
