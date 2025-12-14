@@ -15,10 +15,13 @@ services:
     tty: true # コンテナを維持させる
   # バックエンド (Go)
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+    platform: linux/amd64
     ports:
       - "8080:8080"
     restart: always
     volumes:
       - ./backend:/app
-      # - ./AI:/AI/YaneuraOu-by-gcc-intel # DockerはLinuxコンテナ内で動作するため、macの実行ファイルパスを直接マウントできません。後でLinux用の実行ファイルをビルドしてマウントしてください。
+      - ./AI/eval:/AI/eval # 評価関数
+      - ./AI/book:/AI/book # 定石ファイル
