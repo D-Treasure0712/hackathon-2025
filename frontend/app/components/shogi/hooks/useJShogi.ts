@@ -601,10 +601,10 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
       setLastMoveToSquareId(`${toX}${toY}`);
 
-        // ドロップ成功時にアニメーション開始
+      // ドロップ成功時にアニメーション開始
       if (selectedHandPiecePosition) {
         setIsAnimating(true);
-        
+
         // ドロップアニメーション状態をセット
         setMoveAnimation({
           pieceKind: kind,
@@ -612,7 +612,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           fromSquareId: 'HAND', // ダミーID
           toSquareId: `${toX}${toY}`,
           // fromPositionはダミー（GameBoardでクライアント座標から変換）
-          fromPosition: { x: 0, y: 0 }, 
+          fromPosition: { x: 0, y: 0 },
           toPosition: { x: 0, y: 0 },
           isCapture: false,
           phase: 'lifting', // または 'moving'
@@ -620,17 +620,17 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           dropStartPosition: selectedHandPiecePosition
         });
 
-         // アニメーション完了後の更新を予約（盤面更新自体はstate更新で行われるが、アニメーションと同期させる）
+        // アニメーション完了後の更新を予約（盤面更新自体はstate更新で行われるが、アニメーションと同期させる）
         // ※ dropの場合はshogi.jsのdropは既に実行済みだが、
         // アニメーション中は盤面上に駒を表示したくない（AnimatedPieceが飛んでいるため）
         // GameBoard側で `isAnimatingPiece` 判定に `isDrop` も考慮させる必要がある
         pendingBoardUpdateRef.current = () => {
-             // 履歴に記録（待った用）
-            setMoveHistory(prev => [...prev, {
-                type: 'drop',
-                toX, toY, kind
-            }]);
-            setVersion(v => v + 1);
+          // 履歴に記録（待った用）
+          setMoveHistory(prev => [...prev, {
+            type: 'drop',
+            toX, toY, kind
+          }]);
+          setVersion(v => v + 1);
         };
 
         // 一旦バージョン更新は保留にするため、ここではsetVersionしない
@@ -644,10 +644,10 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           sendMove(moveStr);
         }
       } else {
-         // アニメーションなしの場合（通常ありえないが）
+        // アニメーションなしの場合（通常ありえないが）
         setMoveHistory(prev => [...prev, {
-            type: 'drop',
-            toX, toY, kind
+          type: 'drop',
+          toX, toY, kind
         }]);
         setVersion(v => v + 1);
       }
@@ -810,15 +810,15 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     const parts = uniqueId.split('-');
     let kind: PieceKind;
     if (parts.length === 3) {
-        kind = parts[1] as PieceKind;
+      kind = parts[1] as PieceKind;
     } else {
-        kind = parts[0] as PieceKind;
+      kind = parts[0] as PieceKind;
     }
     const currentTurn = gameRef.current.turn;
 
     // 座標を保存
     if (position) {
-        setSelectedHandPiecePosition(position);
+      setSelectedHandPiecePosition(position);
     }
 
     // AI対局モードで、AI思考中またはゲーム終了時はクリック無効⚠️
@@ -963,6 +963,11 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setMoveAnimation(null);
     setIsAnimating(false);
 
+    // ゲーム終了時は王手カットインを表示しない（詰みで終わった場合）
+    if (gameStatus === 'game_over') {
+      return;
+    }
+
     // 相手に王手をかけたかチェック
     const opponent = gameRef.current.turn; // 手番は既に変わっている
     if (gameRef.current.isCheck(opponent)) {
@@ -971,7 +976,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       setCheckAttacker(attacker as Color);
       setShowCheckCutIn(true);
     }
-  }, []);
+  }, [gameStatus]);
 
   // 弾き飛ばしアニメーション完了時のコールバック
   const onFlyingComplete = useCallback(() => {
