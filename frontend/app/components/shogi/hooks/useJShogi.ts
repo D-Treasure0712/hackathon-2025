@@ -237,32 +237,32 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         const kind = usiToPieceKind[pieceChar];
 
         if (kind) {
-             // ドロップアニメーション設定
-            setMoveAnimation({
-                pieceKind: kind,
-                pieceColor: playerColor === 0 ? 1 : 0,  //AIの色は常にplayerColorの反対です
-                fromSquareId: 'HAND', 
-                toSquareId: `${toX}${toY}`,
-                fromPosition: { x: 0, y: 0 }, 
-                toPosition: { x: 0, y: 0 },
-                isCapture: false,
-                phase: 'lifting', 
-                isDrop: true,
-                // AIのドロップ位置は画面上部中央などを想定（GameBoardで調整が必要かも）
-                // 一旦適当な値を入れるが、GameBoard側でAIの手の場合は上部から飛んでくるようにすると良い
-                // ここではNullにしておいてGameBoardでハンドリングするか、固定値を入れる
-                dropStartPosition: { x: window.innerWidth / 2, y: 0 } 
-            });
+          // ドロップアニメーション設定
+          setMoveAnimation({
+            pieceKind: kind,
+            pieceColor: playerColor === 0 ? 1 : 0,  //AIの色は常にplayerColorの反対です
+            fromSquareId: 'HAND',
+            toSquareId: `${toX}${toY}`,
+            fromPosition: { x: 0, y: 0 },
+            toPosition: { x: 0, y: 0 },
+            isCapture: false,
+            phase: 'lifting',
+            isDrop: true,
+            // AIのドロップ位置は画面上部中央などを想定（GameBoardで調整が必要かも）
+            // 一旦適当な値を入れるが、GameBoard側でAIの手の場合は上部から飛んでくるようにすると良い
+            // ここではNullにしておいてGameBoardでハンドリングするか、固定値を入れる
+            dropStartPosition: { x: window.innerWidth / 2, y: 0 }
+          });
 
-            pendingBoardUpdateRef.current = () => {
-                try {
-                    gameRef.current.drop(toX, toY, kind);
-                    setLastMoveToSquareId(`${toX}${toY}`);
-                    setVersion(v => v + 1);
-                } catch (e) {
-                    console.error('AI drop error:', e);
-                }
-            };
+          pendingBoardUpdateRef.current = () => {
+            try {
+              gameRef.current.drop(toX, toY, kind);
+              setLastMoveToSquareId(`${toX}${toY}`);
+              setVersion(v => v + 1);
+            } catch (e) {
+              console.error('AI drop error:', e);
+            }
+          };
         }
       }
     } else {
@@ -285,42 +285,42 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         const isCapture = !!capturedPiece;
 
         if (movingPiece) {
-            // アニメーション設定
-             if (isCapture && capturedPiece) {
-                setFlyingPiece({
-                    kind: capturedPiece.kind as PieceKind,
-                    color: capturedPiece.color as Color,
-                    position: { x: 0, y: 0 }
-                });
-            }
-
-            setMoveAnimation({
-                pieceKind: movingPiece.kind as PieceKind,
-                pieceColor: movingPiece.color as Color,
-                fromSquareId: `${fromX}${fromY}`,
-                toSquareId: `${toX}${toY}`,
-                fromPosition: { x: 0, y: 0 },
-                toPosition: { x: 0, y: 0 },
-                isCapture,
-                capturedPiece: capturedPiece ? {
-                    kind: capturedPiece.kind as PieceKind,
-                    color: capturedPiece.color as Color
-                } : undefined,
-                phase: 'lifting',
-                isDrop: false,
-                promote,
-                promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
+          // アニメーション設定
+          if (isCapture && capturedPiece) {
+            setFlyingPiece({
+              kind: capturedPiece.kind as PieceKind,
+              color: capturedPiece.color as Color,
+              position: { x: 0, y: 0 }
             });
+          }
 
-            pendingBoardUpdateRef.current = () => {
-                try {
-                  gameRef.current.move(fromX, fromY, toX, toY, promote);
-                  setLastMoveToSquareId(`${toX}${toY}`);
-                  setVersion(v => v + 1);
-                } catch (e) {
-                  console.error('AI move error:', e);
-                }
-            };
+          setMoveAnimation({
+            pieceKind: movingPiece.kind as PieceKind,
+            pieceColor: movingPiece.color as Color,
+            fromSquareId: `${fromX}${fromY}`,
+            toSquareId: `${toX}${toY}`,
+            fromPosition: { x: 0, y: 0 },
+            toPosition: { x: 0, y: 0 },
+            isCapture,
+            capturedPiece: capturedPiece ? {
+              kind: capturedPiece.kind as PieceKind,
+              color: capturedPiece.color as Color
+            } : undefined,
+            phase: 'lifting',
+            isDrop: false,
+            promote,
+            promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
+          });
+
+          pendingBoardUpdateRef.current = () => {
+            try {
+              gameRef.current.move(fromX, fromY, toX, toY, promote);
+              setLastMoveToSquareId(`${toX}${toY}`);
+              setVersion(v => v + 1);
+            } catch (e) {
+              console.error('AI move error:', e);
+            }
+          };
         }
       }
     }
@@ -426,10 +426,21 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
   const connect = useCallback(() => {
     if (!useAI) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    // 既存の接続がある場合は閉じる（新しいゲームセッションを開始するため）
+    if (wsRef.current) {
+      // oncloseハンドラを無効化して、意図的なクローズでgameStatusが'waiting'に戻らないようにする
+      wsRef.current.onclose = null;
+      if (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
+    }
 
     setGameStatus('connecting');
     setWsError(null);
+    setIsConnected(false);
 
     try {
       const gameId = `game_${Date.now()}`;
@@ -454,9 +465,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       ws.onclose = () => {
         console.log('WebSocket disconnected');
         setIsConnected(false);
-        if (gameStatus !== 'game_over') {
-          setGameStatus('waiting');
-        }
+        // 注意: ここでgameStatusを'waiting'に戻さない
+        // （再接続時にuseEffectが無限ループするのを防ぐため）
+        // gameStatus変更はresetGameなど明示的な操作時のみ行う
       };
 
       ws.onerror = (event) => {
@@ -680,7 +691,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
         setIsAnimating(true);
         isAnimatingRef.current = true;
-        
+
         // ドロップアニメーション状態をセット
         setMoveAnimation({
           pieceKind: kind,
@@ -985,14 +996,13 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     setPendingMove(null);
     setAvailableMoves(new Set());
     setMoveHistory([]); // 履歴もクリア
-    // WebSocket状態もリセット
+    // WebSocket状態もリセット（接続は切断しない）
     setGameStatus('waiting');
     setGameResult(null);
     setIsAIThinking(false);
     setWsError(null);
-    // 接続中なら切断
-    disconnect();
-  }, [disconnect]);
+    // 注意: disconnect()は呼び出さない。connect()側で既存接続を閉じて新しい接続を作成する
+  }, []);
 
   // 待った（一手戻す）
   const onUndo = useCallback(() => {
