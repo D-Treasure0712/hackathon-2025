@@ -3,7 +3,7 @@ name: Deploy to ConoHa VPS
 on:
   push:
     branches:
-      - dev  # devブランチにプッシュされたら動く
+      - main  # devブランチにプッシュされたら動く
 
 jobs:
   deploy:
