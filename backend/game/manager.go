@@ -23,8 +23,7 @@ type Game struct {
 	ID     string
 	Moves  []string // USI形式の手履歴
 	Engine *engine.USIEngine
-	Board  *ShogiBoard // gshogiによる盤面管理
-	IsOver bool        // 対局終了フラグ
+	IsOver bool // 対局終了フラグ
 	Result GameResult
 	Reason string // 終了理由: "resign", "checkmate", "rep_draw", "win"
 	BTime  int    // 先手残り時間（ミリ秒）
@@ -76,7 +75,6 @@ func (gm *GameManager) NewGame(gameID string) (*Game, error) {
 		ID:     gameID,
 		Moves:  []string{},
 		Engine: eng,
-		Board:  NewShogiBoard(), // gshogi.NewBoard()で初期化したやつが入る
 		IsOver: false,
 		Result: ResultNone,
 		BTime:  60000, // デフォルト60秒
