@@ -191,6 +191,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
   const [gameStatus, setGameStatus] = useState<'waiting' | 'connecting' | 'playing' | 'game_over'>('waiting');
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
+  // アニメーション中のAI着手を待機するためのキュー
+  const [pendingServerMessage, setPendingServerMessage] = useState<ServerMessage | null>(null);
+
 
   // 初期化
   useEffect(() => {
@@ -259,6 +262,12 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
   // サーバーメッセージの処理
   const handleServerMessage = useCallback((message: ServerMessage) => {
+    // アニメーション中はキューに追加して後で処理
+    if (isAnimating) {
+        setPendingServerMessage(message);
+        return;
+    }
+
     switch (message.type) {
       case 'game_started':
         setGameStatus('playing');
@@ -307,9 +316,14 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     }
   }, [playerColor]);
 
-  // AIの手を盤面に適用
+  // AIの手を盤面に適用（アニメーション付き）
   const applyAIMove = useCallback((moveStr: string) => {
     console.log('Applying AI move:', moveStr);
+
+    setIsAnimating(true);
+    setWaitingForPromotion(false);
+    setSelectedSquareId(null);
+    setAvailableMoves(new Set());
 
     if (moveStr.includes('*')) {
       // 駒打ち: P*5e
@@ -321,19 +335,38 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         const toX = parseInt(toSquareId[0]);
         const toY = parseInt(toSquareId[1]);
 
-        // USI文字からPieceKindに変換
         const usiToPieceKind: Record<string, PieceKind> = {
           'P': 'FU', 'L': 'KY', 'N': 'KE', 'S': 'GI', 'G': 'KI', 'B': 'KA', 'R': 'HI',
         };
         const kind = usiToPieceKind[pieceChar];
+
         if (kind) {
-          try {
-            gameRef.current.drop(toX, toY, kind);
-            setLastMoveToSquareId(`${toX}${toY}`);
-            setVersion(v => v + 1);
-          } catch (e) {
-            console.error('AI drop error:', e);
-          }
+             // ドロップアニメーション設定
+            setMoveAnimation({
+                pieceKind: kind,
+                pieceColor: 1, // AIは常に後手(1) or playerColorの逆? useJShogi({ useAI: true })でAIは逆と仮定
+                fromSquareId: 'HAND', 
+                toSquareId: `${toX}${toY}`,
+                fromPosition: { x: 0, y: 0 }, 
+                toPosition: { x: 0, y: 0 },
+                isCapture: false,
+                phase: 'lifting', 
+                isDrop: true,
+                // AIのドロップ位置は画面上部中央などを想定（GameBoardで調整が必要かも）
+                // 一旦適当な値を入れるが、GameBoard側でAIの手の場合は上部から飛んでくるようにすると良い
+                // ここではNullにしておいてGameBoardでハンドリングするか、固定値を入れる
+                dropStartPosition: { x: window.innerWidth / 2, y: 0 } 
+            });
+
+            pendingBoardUpdateRef.current = () => {
+                try {
+                    gameRef.current.drop(toX, toY, kind);
+                    setLastMoveToSquareId(`${toX}${toY}`);
+                    setVersion(v => v + 1);
+                } catch (e) {
+                    console.error('AI drop error:', e);
+                }
+            };
         }
       }
     } else {
@@ -351,12 +384,47 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         const toX = parseInt(toSquareId[0]);
         const toY = parseInt(toSquareId[1]);
 
-        try {
-          gameRef.current.move(fromX, fromY, toX, toY, promote);
-          setLastMoveToSquareId(`${toX}${toY}`);
-          setVersion(v => v + 1);
-        } catch (e) {
-          console.error('AI move error:', e);
+        const movingPiece = gameRef.current.get(fromX, fromY);
+        const capturedPiece = gameRef.current.get(toX, toY);
+        const isCapture = !!capturedPiece;
+
+        if (movingPiece) {
+            // アニメーション設定
+             if (isCapture && capturedPiece) {
+                setFlyingPiece({
+                    kind: capturedPiece.kind as PieceKind,
+                    color: capturedPiece.color as Color,
+                    position: { x: 0, y: 0 }
+                });
+            }
+
+            setMoveAnimation({
+                pieceKind: movingPiece.kind as PieceKind,
+                pieceColor: movingPiece.color as Color,
+                fromSquareId: `${fromX}${fromY}`,
+                toSquareId: `${toX}${toY}`,
+                fromPosition: { x: 0, y: 0 },
+                toPosition: { x: 0, y: 0 },
+                isCapture,
+                capturedPiece: capturedPiece ? {
+                    kind: capturedPiece.kind as PieceKind,
+                    color: capturedPiece.color as Color
+                } : undefined,
+                phase: 'lifting',
+                isDrop: false,
+                promote,
+                promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
+            });
+
+            pendingBoardUpdateRef.current = () => {
+                try {
+                  gameRef.current.move(fromX, fromY, toX, toY, promote);
+                  setLastMoveToSquareId(`${toX}${toY}`);
+                  setVersion(v => v + 1);
+                } catch (e) {
+                  console.error('AI move error:', e);
+                }
+            };
         }
       }
     }
@@ -472,6 +540,10 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     const movingPiece = gameRef.current.get(fromX, fromY);
     if (!movingPiece) return;
 
+    // 参照による変更を防ぐためプリミティブ値として保存
+    const movingPieceKind = movingPiece.kind;
+    const movingPieceColor = movingPiece.color;
+
     // 移動先に駒があるかチェック（unmove用）
     const capturedPiece = gameRef.current.get(toX, toY);
     const capturedKind = capturedPiece ? capturedPiece.kind : undefined;
@@ -539,8 +611,8 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
     // 移動アニメーション状態をセット
     setMoveAnimation({
-      pieceKind: movingPiece.kind as PieceKind,
-      pieceColor: movingPiece.color as Color,
+      pieceKind: movingPieceKind as PieceKind,
+      pieceColor: movingPieceColor as Color,
       fromSquareId: `${fromX}${fromY}`,
       toSquareId: `${toX}${toY}`,
       // 位置は一旦ダミー（GameBoard側で上書きされる）
@@ -554,7 +626,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       phase: 'lifting',
       isDrop: false,
       promote,
-      promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
+      promotedKind: promote ? (PROMOTED_KIND_MAP[movingPieceKind as PieceKind] || movingPieceKind as PieceKind) : undefined
     });
 
     // アニメーション完了時に実行する盤面更新を予約
@@ -967,11 +1039,22 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     const opponent = gameRef.current.turn; // 手番は既に変わっている
     if (gameRef.current.isCheck(opponent)) {
       // 王手！カットインを表示
+
       const attacker = opponent === 0 ? 1 : 0; // 王手をかけたのは前の手番のプレイヤー
       setCheckAttacker(attacker as Color);
       setShowCheckCutIn(true);
     }
-  }, []);
+    
+    // 待機していたAIの手があれば処理
+    if (pendingServerMessage) {
+        // 少し遅延させる
+        setTimeout(() => {
+            const msg = pendingServerMessage;
+            setPendingServerMessage(null);
+            handleServerMessage(msg);
+        }, 100);
+    }
+  }, [pendingServerMessage, handleServerMessage]);
 
   // 弾き飛ばしアニメーション完了時のコールバック
   const onFlyingComplete = useCallback(() => {
