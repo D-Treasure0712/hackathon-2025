@@ -1,0 +1,22 @@
+services:
+  # フロントエンド (Next.js)
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    # マウント後に依存を再インストールしてモジュール欠落を防ぐ（ここを追加してちょ）
+    command: sh -c "npm install && npm run dev"
+    environment:
+      - WATCHPACK_POLLING=true # Windowsでのホットリロード対応
+    tty: true # コンテナを維持させる
+  # バックエンド (Go)
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      # - ./AI:/AI/YaneuraOu-by-gcc-intel # DockerはLinuxコンテナ内で動作するため、macの実行ファイルパスを直接マウントできません。後でLinux用の実行ファイルをビルドしてマウントしてください。

@@ -1,0 +1,35 @@
+name: Deploy to ConoHa VPS
+
+on:
+  push:
+    branches:
+      - dev  # devブランチにプッシュされたら動く
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}      # 名前を修正
+          username: ${{ secrets.SSH_USERNAME }} # 名前を修正
+          key: ${{ secrets.SK }}             # 名前を修正
+          port: 22
+          timeout: 30m
+          script: |
+            # 1. フォルダがなければClone、あればPull
+            # aibaユーザーのホームディレクトリ(~)を使います
+            if [ ! -d "~/shogi-app/.git" ]; then
+              git clone https://github.com/D-Treasure0712/hackathon-2025.git ~/shogi-app
+            else
+              cd ~/shogi-app
+              git pull origin dev
+            fi
+
+            # 2. Docker起動 (ビルド込み)
+            cd ~/shogi-app
+            docker compose up -d --build
+            
+            # 3. お掃除 (古いイメージを消す)
+            docker image prune -f
