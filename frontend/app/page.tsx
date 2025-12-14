@@ -2,62 +2,57 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react"; 
-// 🎬 アニメーション用ライブラリ
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
 /**
  * ============================================================================
- * 🌸 FloatingPetal コンポーネント
- * ----------------------------------------------------------------------------
- * ランダムな動きで落下する花びらを生成します。
+ * 🌸 FloatingPetal Component
  * ============================================================================
  */
 const FloatingPetal = () => {
-  // 親コンポーネントで {isClient && ...} を使って制御するため、ここでは単純なランダム生成を行う
-  const randomXStart = Math.random() * 100;       
-  const randomDelay = Math.random() * 10;         
-  const randomDuration = 10 + Math.random() * 10; 
-  const randomScale = 0.5 + Math.random() * 0.5;  
-  const randomRotationSpeed = (Math.random() - 0.5) * 2; 
-
-  const randomXOffset1 = -5 + Math.random() * 10; 
-  const randomXOffset2 = -5 + Math.random() * 10; 
+  const randomXStart = Math.random() * 100;
+  const randomDelay = Math.random() * 10;
+  const randomDuration = 10 + Math.random() * 10;
+  const randomScale = 0.5 + Math.random() * 0.5;
+  const randomRotationSpeed = (Math.random() - 0.5) * 2;
+  const randomXOffset1 = -5 + Math.random() * 10;
+  const randomXOffset2 = -5 + Math.random() * 10;
 
   const petalVariants: Variants = {
     initial: {
-      y: -50, 
+      y: -50,
       x: `${randomXStart}vw`,
       opacity: 0,
       scale: randomScale,
       rotate: randomRotationSpeed * 360,
     },
     animate: {
-      y: "110vh", 
-      opacity: [0, 1, 1, 0], 
-      rotate: 360 * randomRotationSpeed * 5, 
+      y: "110vh",
+      opacity: [0, 1, 1, 0],
+      rotate: 360 * randomRotationSpeed * 5,
       x: [
         `${randomXStart}vw`,
         `${randomXStart + randomXOffset1}vw`,
         `${randomXStart}vw`,
         `${randomXStart + randomXOffset2}vw`,
-        `${randomXStart}vw`
+        `${randomXStart}vw`,
       ],
       transition: {
         duration: randomDuration,
         delay: randomDelay,
-        repeat: Infinity, 
-        ease: "linear",   
+        repeat: Infinity,
+        ease: "linear",
         opacity: {
           duration: randomDuration,
           times: [0, 0.1, 0.8, 1],
-          repeat: Infinity
+          repeat: Infinity,
         },
         x: {
           duration: randomDuration,
           repeat: Infinity,
-          ease: "easeInOut" 
-        }
+          ease: "easeInOut",
+        },
       },
     },
   };
@@ -67,17 +62,14 @@ const FloatingPetal = () => {
       variants={petalVariants}
       initial="initial"
       animate="animate"
-      className="absolute top-0 pointer-events-none z-10" 
-      style={{ width: '20px', height: '20px' }} 
+      className="absolute top-0 pointer-events-none z-10"
+      style={{ width: "20px", height: "20px" }}
     >
       <Image
-        src="/images/petal.png" 
+        src="/images/petal.png"
         alt="花びら"
         fill
-        style={{ 
-          objectFit: 'contain', 
-          filter: 'brightness(0.65)' 
-        }}
+        style={{ objectFit: "contain", filter: "brightness(0.65)" }}
       />
     </motion.div>
   );
@@ -85,143 +77,130 @@ const FloatingPetal = () => {
 
 /**
  * ============================================================================
- * 🎞️ アニメーション設定 (Variants)
+ * 🎞️ Animation Variants
  * ============================================================================
  */
 const bgAnimation: Variants = {
   animate: {
-    scale: [1.0, 1.08, 1.0], 
-    x: [0, -15, 0],          
-    y: [0, 5, 0],            
+    scale: [1.0, 1.05, 1.0],
     transition: {
-      duration: 25,     
-      repeat: Infinity, 
-      ease: "easeInOut" 
-    }
-  }
+      duration: 20,
+      repeat: Infinity,
+      ease: "easeInOut",
+    },
+  },
 };
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
+const sentenceVariant: Variants = {
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.3, 
-      delayChildren: 0.5,   
-    }
-  }
+    transition: { delayChildren: 0.5, staggerChildren: 0.1 },
+  },
 };
 
-const logoVariant: Variants = {
-  hidden: { scale: 2.5, opacity: 0, y: -20 },
+const letterVariant: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: "easeOut" },
+  },
+};
+
+const playerZoomOutVariant: Variants = {
+  hidden: { scale: 2.4, opacity: 0, y: 50 },
   visible: {
     scale: 1,
     opacity: 1,
     y: 0,
     transition: {
-      type: "spring",  
-      stiffness: 120,  
-      damping: 12,     
-      duration: 0.8
-    }
-  }
+      duration: 3.5,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
 };
 
-const itemFadeUpVariant: Variants = {
-  hidden: { y: 50, opacity: 0 },
+const logoImpactVariant: Variants = {
+  hidden: { scale: 3, opacity: 0, rotate: -5 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    rotate: 0,
+    transition: {
+      delay: 2.0,
+      type: "spring",
+      stiffness: 300,
+      damping: 15,
+      mass: 1.5,
+      duration: 0.5,
+    },
+  },
+};
+
+const uiFadeInVariant: Variants = {
+  hidden: { y: 20, opacity: 0 },
   visible: {
     y: 0,
     opacity: 1,
-    transition: { duration: 0.6, ease: "easeOut" }
-  }
+    transition: { delay: 3.0, duration: 0.8, ease: "easeOut" },
+  },
 };
-
 
 /**
  * ============================================================================
- * 🚀 Home コンポーネント (メインページ)
+ * 🚀 Home Component
  * ============================================================================
  */
 export default function Home() {
-  // ⏳ 状態管理
   const [isCheckComplete, setIsCheckComplete] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [isClient, setIsClient] = useState(false);
-
-  // 🎵 BGM用の状態管理
   const audioRef = useRef<HTMLAudioElement>(null);
-  // 初期音量 (デフォルトは30%)
   const [volume, setVolume] = useState(0.3);
 
-  // 初回マウント時の処理
+  const quoteLine1 = "せっかく神様がいるのなら";
+  const quoteLine2 = "１局、お手合わせをお願いしたい";
+
+  // 初期化処理
   useEffect(() => {
-    setIsClient(true); 
-
-    // 1. セッションストレージを確認 (イントロ表示済みか？)
+    setIsClient(true);
     const hasVisited = sessionStorage.getItem("visited_intro");
-    if (hasVisited) {
-      setShowIntro(false);
-      setIsCheckComplete(true); 
-    } else {
-      setIsCheckComplete(true); 
-    }
+    if (hasVisited) setShowIntro(false);
+    setIsCheckComplete(true);
 
-    // 2. ローカルストレージを確認 (音量設定があるか？)
-    // SoundSettings.tsx で保存したキー 'shogi_bgm_volume' を読みに行きます
-    const savedVolume = localStorage.getItem('shogi_bgm_volume');
+    const savedVolume = localStorage.getItem("shogi_bgm_volume");
     if (savedVolume) {
-      // 0〜100で保存されているので、0.0〜1.0に変換
-      const vol = Number(savedVolume) / 100;
-      setVolume(vol);
-      
-      // すでにaudioタグがマウントされていれば適用
-      if (audioRef.current) {
-        audioRef.current.volume = vol;
-      }
+      setVolume(Number(savedVolume) / 100);
+      if (audioRef.current) audioRef.current.volume = Number(savedVolume) / 100;
     }
   }, []);
 
-  // 🎵 画面クリックで開始するハンドラ
+  // スタート処理
   const handleStart = () => {
     if (audioRef.current) {
-      // 保存された音量(volume)を適用して再生
       audioRef.current.volume = volume;
-      audioRef.current.play().catch(e => console.log("再生エラー:", e));
+      audioRef.current.play().catch((e) => console.log(e));
     }
-
     setShowIntro(false);
     sessionStorage.setItem("visited_intro", "true");
   };
 
-  // 🎵 再訪問時（showIntroがfalseの状態）の自動再生ロジック
+  // BGM自動再生制御
   useEffect(() => {
     if (!showIntro && audioRef.current && audioRef.current.paused) {
-      audioRef.current.volume = volume; // ここでも volume state を使う
-      audioRef.current.play().catch((e) => {
-        console.log("BGM autoplay prevented:", e);
-      });
+      audioRef.current.volume = volume;
+      audioRef.current.play().catch((e) => console.log(e));
     }
-  }, [showIntro, volume]); // volumeが変わった時も反映
+  }, [showIntro, volume]);
 
-  // 🌸 花びらの生成枚数
-  const petalCount = 30;
-
-  if (!isCheckComplete) {
-    return <div className="min-h-svh w-full bg-black" />;
-  }
+  if (!isCheckComplete) return <div className="min-h-svh w-full bg-black" />;
 
   return (
     <div className="relative min-h-svh w-full overflow-hidden text-white font-serif">
-      
-      {/* 🎵 BGM用のaudio要素 */}
-      <audio 
-        ref={audioRef} 
-        src="/sounds/野山.mp3" 
-        loop 
-        preload="auto"
-      />
+      <audio ref={audioRef} src="/sounds/野山.mp3" loop preload="auto" />
 
-      {/* Layer 0: 背景画像エリア */}
+      {/* --- Layer 0: 背景画像エリア --- */}
       <div className="absolute inset-0 z-0 overflow-hidden bg-black">
         <motion.div
           className="absolute inset-0 md:hidden"
@@ -229,152 +208,210 @@ export default function Home() {
           variants={bgAnimation}
         >
           <Image
-            src="/images/mobile_title_background.png" 
-            alt="スマホ用背景"
-            fill 
-            priority 
-            style={{ objectFit: 'cover' }}
-            className="opacity-80 pointer-events-none" 
+            src="/images/mobile_title_background.png"
+            alt="スマホ"
+            fill
+            priority
+            style={{ objectFit: "cover" }}
+            className="opacity-60 pointer-events-none"
           />
         </motion.div>
-
         <motion.div
           className="absolute inset-0 hidden md:block"
           animate="animate"
           variants={bgAnimation}
         >
           <Image
-            src="/images/pc_title_background.png" 
-            alt="PC用背景"
-            fill 
-            priority 
-            style={{ objectFit: 'cover' }}
-            className="opacity-80 pointer-events-none" 
+            src="/images/pc_title_background.png"
+            alt="PC用背景画像"
+            fill
+            priority
+            style={{ objectFit: "cover" }}
+            className="opacity-60 pointer-events-none"
           />
         </motion.div>
-        <div className="absolute inset-0 bg-black/10" />
+        <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      {/* Layer 1: 花びらエフェクト */}
+      {/* --- Layer 1: 花びらエフェクト --- */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
-        {isClient && [...Array(petalCount)].map((_, i) => (
-          <FloatingPetal key={i} />
-        ))}
+        {isClient && [...Array(30)].map((_, i) => <FloatingPetal key={i} />)}
       </div>
 
-      <AnimatePresence mode="wait">
-        
+      <AnimatePresence>
         {showIntro ? (
-          // 1️⃣ イントロ画面 (クリックでスタート)
+          // ==============================================================
+          // 1️⃣ イントロ画面
+          // ==============================================================
           <motion.div
             key="intro-screen"
-            onClick={handleStart} 
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white cursor-pointer" 
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 1 } }} 
+            onClick={handleStart}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center cursor-pointer"
           >
-            <p className="text-black text-2xl md:text-4xl font-bold tracking-widest animate-pulse">
-              created by 田中角行
-            </p>
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.5 }}
-              className="mt-35 text-stone-400 text-xl md:text-2xl animate-bounce tracking-widest"
-            >
-               click to start
-            </motion.p>
-          </motion.div>
+            {/* 白い背景 */}
+            <motion.div
+              className="absolute inset-0 bg-white"
+              exit={{
+                opacity: 0,
+                transition: { duration: 1.0, ease: "easeInOut" },
+              }}
+            />
 
+            {/* コンテンツ（名言など） */}
+            <motion.div
+              className="relative z-10 w-full max-w-2xl px-6 flex flex-col items-center"
+              exit={{
+                opacity: 0,
+                scale: 1.1,
+                filter: "blur(4px)",
+                transition: { duration: 3.0, ease: "easeOut" },
+              }}
+            >
+              <div className="w-full space-y-8 text-black">
+                <motion.div
+                  variants={sentenceVariant}
+                  initial="hidden"
+                  animate="visible"
+                  className="text-xl md:text-3xl font-medium leading-relaxed tracking-widest text-center md:text-left"
+                >
+                  <span className="inline-block">
+                    {quoteLine1.split("").map((char, i) => (
+                      <motion.span key={`l1-${i}`} variants={letterVariant}>
+                        {char}
+                      </motion.span>
+                    ))}
+                  </span>
+                  <br className="md:hidden" />
+                  <span className="inline-block md:ml-4">
+                    {quoteLine2.split("").map((char, i) => (
+                      <motion.span key={`l2-${i}`} variants={letterVariant}>
+                        {char}
+                      </motion.span>
+                    ))}
+                  </span>
+                </motion.div>
+                <motion.p
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 3.5, duration: 1 }}
+                  className="text-lg md:text-2xl font-bold text-right tracking-widest"
+                >
+                  藤井聡太
+                </motion.p>
+              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 4.5, duration: 1 }}
+                className="mt-24 md:mt-32 flex flex-col items-center gap-6"
+              >
+                <p className="text-sm md:text-base text-gray-500 tracking-wider">
+                  created by 田中角行
+                </p>
+                <p className="text-xl md:text-2xl font-serif animate-pulse tracking-[0.2em] text-gray-800">
+                  click to start
+                </p>
+              </motion.div>
+            </motion.div>
+          </motion.div>
         ) : (
+          // ==============================================================
           // 2️⃣ メインコンテンツ
+          // ==============================================================
           <motion.main
             key="main-content"
-            className="relative z-10 flex min-h-svh flex-col items-center py-8 px-4 md:px-8"
-            variants={containerVariants} 
+            className="relative z-10 flex min-h-svh w-full flex-col items-center py-4 px-4 md:px-8"
             initial="hidden"
             animate="visible"
           >
-
-            <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-4 md:gap-8 md:flex-row md:justify-between flex-grow mt-8 md:mt-0">
-              
-              {/* === 左カラム: タイトルロゴ === */}
-              <motion.div 
-                className="flex flex-col items-center md:items-center md:w-1/2 mt-2 md:mt-0"
-                variants={logoVariant}
+            {/* 左上: 設定ボタン (歯車画像) */}
+            <motion.div
+              className="absolute top-6 left-6 z-50 pointer-events-auto"
+              variants={uiFadeInVariant}
+            >
+              <Link
+                href="/settings"
+                className="relative block w-12 h-12 md:w-16 md:h-16 transition-transform hover:rotate-90 duration-500 hover:scale-110"
               >
-                <h1 className="font-bold tracking-tight text-white">
-                  <Image
-                    src="/images/logo.png" 
-                    alt="Fujii-kun ロゴ"
-                    width={600}
-                    height={600}
-                    className="w-[70vw] max-w-[420px] h-auto md:w-[600px] md:h-auto drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] md:translate-x-[110px] md:-translate-y-[10px]"
-                    style={{ objectFit: 'contain' }}
-                    priority 
-                  />
-                </h1>
-              </motion.div>
-              
-              {/* === 右カラム: 棋士画像と操作ボタン === */}
-              <div className="flex flex-col items-center w-full md:w-1/2 md:items-center mt-4 md:mt-0 md:-translate-x-[100px]">
-                
-                {/* 棋士画像 */}
-                <motion.div 
-                  className="relative z-0 w-[60vw] max-w-[320px] h-auto aspect-square md:w-[350px] md:h-[450px] flex items-center justify-center"
-                  variants={itemFadeUpVariant}
-                >
-                  <Image 
-                    src="/images/ChessPlayer.png" 
-                    alt="棋士" 
-                    width={500}
-                    height={500}
-                    className="object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
-                  /> 
-                </motion.div>
+                <Image
+                  src="/images/setting.png"
+                  alt="設定"
+                  fill
+                  style={{ objectFit: "contain" }}
+                  className="drop-shadow-md"
+                />
+              </Link>
+            </motion.div>
 
+            <div className="relative w-full max-w-7xl flex flex-col items-center justify-center flex-grow h-full min-h-[600px]">
+              {/* タイトルロゴ */}
+              <motion.div
+                className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none md:-translate-x-[10%] translate-y-[-220px] md:translate-y-[-120px]"
+                variants={logoImpactVariant}
+              >
+                <Image
+                  src="/images/logo.png"
+                  alt="ロゴ"
+                  width={800}
+                  height={400}
+                  priority
+                  className="w-[80vw] max-w-[600px] md:max-w-[500px] h-auto drop-shadow-[0_20px_40px_rgba(0,0,0,0.9)]"
+                  style={{ objectFit: "contain" }}
+                />
+              </motion.div>
+
+              {/* 棋士画像 */}
+              <motion.div
+                className="relative z-10 w-[85vw] max-w-[500px] h-auto aspect-square md:w-[700px] md:h-[800px] md:-translate-x-[-40%] flex items-center justify-center overflow-visible translate-y-[50px] md:translate-y-[-120px]"
+                variants={playerZoomOutVariant}
+              >
+                <Image
+                  src="/images/ChessPlayer.png"
+                  alt="棋士"
+                  width={700}
+                  height={800}
+                  priority
+                  className="object-contain drop-shadow-[0_0_40px_rgba(255,255,255,0.25)]"
+                />
+              </motion.div>
+
+              {/* 中央下: 対局開始ボタン & 藤井君とはボタン */}
+              <motion.div
+                className="absolute bottom-10 z-50 flex flex-col items-center gap-0 w-full pointer-events-auto"
+                variants={uiFadeInVariant}
+              >
                 {/* 対局開始ボタン */}
-                <motion.div 
-                  className="w-full flex justify-center"
-                  variants={itemFadeUpVariant}
+                <Link
+                  href="/game"
+                  className="relative group w-90 h-30 md:w-100 md:h-70 translate-y-[-30px] md:translate-y-[-10px] transition-transform active:scale-95"
                 >
+                  <Image
+                    src="/images/start-button.png"
+                    alt="対局開始ボタン"
+                    fill
+                    style={{ objectFit: "contain" }}
+                    className="drop-shadow-lg group-hover:drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] transition-all translate-y-[30px]"
+                  />
+                </Link>
+
+                {/* 藤井君とはボタン */}
+                <div className="w-full max-w-xs flex justify-center">
                   <Link
-                    href="/game"
-                    className="relative z-10 -mt-2 md:-mt-20 group inline-flex items-center justify-center overflow-hidden rounded-lg w-80 h-24 md:w-80 md:h-30 text-xl tracking-widest"
-                  >
-                    <Image
-                      src="/images/start-button.png" 
-                      alt="対局開始ボタン"
-                      fill 
-                      priority 
-                      style={{ objectFit: 'contain' }} 
-                      className="absolute inset-0 z-0 transition-transform duration-300 group-hover:scale-105" 
-                    />
-                    <span className="sr-only">対局開始</span>
-                    <span className="absolute inset-0 z-10 w-full h-full bg-gradient-to-br from-amber-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                  </Link>
-                </motion.div>
-                
-                {/* サブボタン */}
-                <motion.div 
-                  className="flex flex-row md:flex-col gap-3 w-full max-w-xs mt-4 md:mt-6"
-                  variants={itemFadeUpVariant}
-                >
-                  <Link
-                    href="/settings"
-                    className="relative flex-1 md:flex-none md:w-full inline-flex items-center justify-center px-4 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
-                  >
-                    設定
-                  </Link>
-                  <Link                  
                     href="/hujiikuntoha"
-                    className="relative flex-1 md:flex-none md:w-full inline-flex items-center justify-center px-4 py-3 font-semibold rounded-lg bg-slate-800 border-2 border-slate-600 text-slate-300 transition-all hover:bg-slate-700 active:scale-95 text-lg"
+                    className="
+                      w-50 py-3 md:w-80 md:py-4
+                      bg-slate-800/80 border border-slate-600 
+                      text-slate-200 text-center rounded 
+                      hover:bg-slate-700 transition-colors backdrop-blur-sm 
+                      font-semibold tracking-wider
+                      translate-y-[10px]
+                      md:translate-y-[-40px]
+                    "
                   >
                     藤井君とは
                   </Link>
-                </motion.div>
-
-              </div> 
+                </div>
+              </motion.div>
             </div>
           </motion.main>
         )}
