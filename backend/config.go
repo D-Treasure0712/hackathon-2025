@@ -5,10 +5,10 @@ package main
 // 一度に有効にできるのは1つだけです。
 
 // === macOS (Apple Silicon / ARM) ===
-// const EngineBinary = "YaneuraOu-by-gcc-mac"
+const EngineBinary = "YaneuraOu-by-gcc-mac"
 
 // === Intel CPU ===
 // const EngineBinary = "YaneuraOu-by-gcc-intel"
 
 // === AMD Ryzen CPU (Windows) ===
-const EngineBinary = "YaneuraOu-by-gcc-ryzen.exe"
+// const EngineBinary = "YaneuraOu-by-gcc-ryzen.exe"
