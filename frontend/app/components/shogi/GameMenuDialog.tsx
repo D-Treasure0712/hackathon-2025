@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 interface GameMenuDialogProps {
   isOpen: boolean;
@@ -60,6 +61,17 @@ export const GameMenuDialog: React.FC<GameMenuDialogProps> = ({
                     >
                       <span className="text-xl"></span> 最初から
                     </button>
+                    <Link
+                       href="/"
+                       className="
+                        w-full py-3 px-4 rounded-lg
+                        bg-blue-400 hover:bg-blue-400
+                        text-white dark:text-zinc-300 font-bold text-lg
+                        transition-all text-center
+                      "
+                    >
+                      タイトルに戻る
+                    </Link>
                  </div>
                  <div className="mt-6 text-center">
                     <button 
