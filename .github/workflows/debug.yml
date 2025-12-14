@@ -1,0 +1,32 @@
+name: Debug Secrets
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Secrets
+        run: |
+          echo "Checking secrets..."
+          
+          if [ -z "${{ secrets.SSH_HOST }}" ]; then
+            echo "❌ SSH_HOST is EMPTY"
+          else
+            echo "✅ SSH_HOST is set"
+          fi
+          
+          if [ -z "${{ secrets.SSH_USERNAME }}" ]; then
+            echo "❌ SSH_USERNAME is EMPTY"
+          else
+            echo "✅ SSH_USERNAME is set"
+          fi
+          
+          if [ -z "${{ secrets.SK }}" ]; then
+            echo "❌ SK is EMPTY (This is the problem!)"
+          else
+            echo "✅ SK is set"
+          fi
