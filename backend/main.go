@@ -40,7 +40,7 @@ func main() {
 	var enginePath, evalDir string
 
 	// Docker環境のパスを優先
-	dockerEnginePath := "/AI/YaneuraOu-by-gcc-mac"
+	dockerEnginePath := "/AI/" + EngineBinary
 	dockerEvalDir := "/AI/eval"
 
 	if _, err := os.Stat(dockerEnginePath); err == nil {
@@ -48,7 +48,7 @@ func main() {
 		evalDir = dockerEvalDir
 	} else {
 		// ローカル環境用のパス
-		enginePath = filepath.Join(workDir, "..", "AI", "YaneuraOu-by-gcc-mac")
+		enginePath = filepath.Join(workDir, "..", "AI", EngineBinary)
 		evalDir = filepath.Join(workDir, "..", "AI", "eval")
 	}
 
