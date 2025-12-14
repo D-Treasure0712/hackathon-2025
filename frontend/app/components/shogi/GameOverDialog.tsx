@@ -20,6 +20,8 @@ export interface GameOverDialogProps {
   playerNumber: Color;
   /** 再対局コールバック */
   onRematch: () => void;
+  /** AI接続コールバック */
+  onConnect: () => void;
 }
 
 // =====================================
@@ -33,6 +35,7 @@ export const GameOverDialog: React.FC<GameOverDialogProps> = ({
   winner,
   playerNumber,
   onRematch,
+  onConnect,
 }) => {
   if (winner === null) return null;
 
@@ -60,7 +63,10 @@ export const GameOverDialog: React.FC<GameOverDialogProps> = ({
         {/* ボタン */}
         <div className="flex flex-col gap-3">
           <button
-            onClick={onRematch}
+            onClick={() => {
+              onRematch();
+              onConnect();
+            }}
             className="
               w-full py-3 px-4 rounded-lg
               bg-gradient-to-r from-blue-500 to-purple-500
