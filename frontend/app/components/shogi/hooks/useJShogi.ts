@@ -330,6 +330,13 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           try {
             gameRef.current.drop(toX, toY, kind);
             setLastMoveToSquareId(`${toX}${toY}`);
+
+            // AIの手を履歴に記録（待った用）
+            setMoveHistory(prev => [...prev, {
+              type: 'drop',
+              toX, toY, kind
+            }]);
+
             setVersion(v => v + 1);
           } catch (e) {
             console.error('AI drop error:', e);
@@ -351,9 +358,21 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
         const toX = parseInt(toSquareId[0]);
         const toY = parseInt(toSquareId[1]);
 
+        // 移動先に駒があるかチェック（unmove用）
+        const capturedPiece = gameRef.current.get(toX, toY);
+        const capturedKind = capturedPiece ? capturedPiece.kind : undefined;
+
         try {
           gameRef.current.move(fromX, fromY, toX, toY, promote);
           setLastMoveToSquareId(`${toX}${toY}`);
+
+          // AIの手を履歴に記録（待った用）
+          setMoveHistory(prev => [...prev, {
+            type: 'move',
+            fromX, fromY, toX, toY, promote,
+            capturedKind
+          }]);
+
           setVersion(v => v + 1);
         } catch (e) {
           console.error('AI move error:', e);
@@ -557,24 +576,9 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
       promotedKind: promote ? (PROMOTED_KIND_MAP[movingPiece.kind as PieceKind] || movingPiece.kind as PieceKind) : undefined
     });
 
-    // アニメーション完了時に実行する盤面更新を予約
+    // アニメーション完了時に王手チェックを行う（盤面更新は既に完了済み）
     pendingBoardUpdateRef.current = () => {
-      try {
-        // 実際に盤面を更新
-        gameRef.current.move(fromX, fromY, toX, toY, promote);
-        setLastMoveToSquareId(`${toX}${toY}`);
-
-        // 履歴に記録（待った用）
-        setMoveHistory(prev => [...prev, {
-          type: 'move',
-          fromX, fromY, toX, toY, promote,
-          capturedKind
-        }]);
-
-        setVersion(v => v + 1);
-      } catch (e) {
-        console.error("Move execution error:", e);
-      }
+      // 王手チェックはonAnimationCompleteで行うため、ここでは何もしない
     };
     setSelectedSquareId(null);
     setAvailableMoves(new Set()); // クリア
@@ -601,10 +605,16 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
 
       setLastMoveToSquareId(`${toX}${toY}`);
 
-        // ドロップ成功時にアニメーション開始
+      // 履歴に記録（待った用）- アニメーションとは独立して即座に記録
+      setMoveHistory(prev => [...prev, {
+        type: 'drop',
+        toX, toY, kind
+      }]);
+
+      // ドロップ成功時にアニメーション開始
       if (selectedHandPiecePosition) {
         setIsAnimating(true);
-        
+
         // ドロップアニメーション状態をセット
         setMoveAnimation({
           pieceKind: kind,
@@ -612,7 +622,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           fromSquareId: 'HAND', // ダミーID
           toSquareId: `${toX}${toY}`,
           // fromPositionはダミー（GameBoardでクライアント座標から変換）
-          fromPosition: { x: 0, y: 0 }, 
+          fromPosition: { x: 0, y: 0 },
           toPosition: { x: 0, y: 0 },
           isCapture: false,
           phase: 'lifting', // または 'moving'
@@ -620,21 +630,12 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           dropStartPosition: selectedHandPiecePosition
         });
 
-         // アニメーション完了後の更新を予約（盤面更新自体はstate更新で行われるが、アニメーションと同期させる）
-        // ※ dropの場合はshogi.jsのdropは既に実行済みだが、
-        // アニメーション中は盤面上に駒を表示したくない（AnimatedPieceが飛んでいるため）
-        // GameBoard側で `isAnimatingPiece` 判定に `isDrop` も考慮させる必要がある
+        // アニメーション完了時の処理（盤面更新と履歴記録は既に完了）
         pendingBoardUpdateRef.current = () => {
-             // 履歴に記録（待った用）
-            setMoveHistory(prev => [...prev, {
-                type: 'drop',
-                toX, toY, kind
-            }]);
-            setVersion(v => v + 1);
+          // Nothing to do - already recorded
         };
 
-        // 一旦バージョン更新は保留にするため、ここではsetVersionしない
-        // （pendingBoardUpdateRefで実行）
+        setVersion(v => v + 1);
 
         // AI対局モードの場合、WebSocketで送信
         if (useAI && isConnected) {
@@ -644,11 +645,7 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
           sendMove(moveStr);
         }
       } else {
-         // アニメーションなしの場合（通常ありえないが）
-        setMoveHistory(prev => [...prev, {
-            type: 'drop',
-            toX, toY, kind
-        }]);
+        // アニメーションなしの場合
         setVersion(v => v + 1);
       }
     } catch (e) {
@@ -810,15 +807,15 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     const parts = uniqueId.split('-');
     let kind: PieceKind;
     if (parts.length === 3) {
-        kind = parts[1] as PieceKind;
+      kind = parts[1] as PieceKind;
     } else {
-        kind = parts[0] as PieceKind;
+      kind = parts[0] as PieceKind;
     }
     const currentTurn = gameRef.current.turn;
 
     // 座標を保存
     if (position) {
-        setSelectedHandPiecePosition(position);
+      setSelectedHandPiecePosition(position);
     }
 
     // AI対局モードで、AI思考中またはゲーム終了時はクリック無効⚠️
@@ -913,40 +910,67 @@ export function useJShogi(options: UseJShogiOptions): UseJShogiReturn {
     disconnect();
   }, [disconnect]);
 
-  // 待った（一手戻す）
+  // 待った（AI対局モードでは2手、通常は1手戻す）
   const onUndo = useCallback(() => {
-    // AI対局モードでは待った禁止⚠️ここ治す
-    if (useAI) return;
-    if (moveHistory.length === 0 || winner !== null) return;
+    if (moveHistory.length === 0 || winner !== null || isAnimating || isAIThinking) return;
 
-    const lastMove = moveHistory[moveHistory.length - 1];
+    // AI対局モードでは2手（自分の手 + AIの手）戻す必要がある
+    // 通常モードでは1手戻す
+    const movesToUndo = useAI ? 2 : 1;
+
+    // 戻せる手数の確認
+    if (moveHistory.length < movesToUndo) return;
 
     try {
-      if (lastMove.type === 'move') {
-        gameRef.current.unmove(
-          lastMove.fromX, lastMove.fromY,
-          lastMove.toX, lastMove.toY,
-          lastMove.promote,
-          lastMove.capturedKind
-        );
-      } else {
-        // dropの場合
-        gameRef.current.undrop(lastMove.toX, lastMove.toY);
+      // 指定された手数分を戻す
+      for (let i = 0; i < movesToUndo; i++) {
+        const moveIndex = moveHistory.length - 1 - i;
+        const moveToUndo = moveHistory[moveIndex];
+
+        if (moveToUndo.type === 'move') {
+          gameRef.current.unmove(
+            moveToUndo.fromX, moveToUndo.fromY,
+            moveToUndo.toX, moveToUndo.toY,
+            moveToUndo.promote,
+            moveToUndo.capturedKind
+          );
+        } else {
+          // dropの場合
+          gameRef.current.undrop(moveToUndo.toX, moveToUndo.toY);
+        }
       }
 
       // 履歴から削除
-      setMoveHistory(prev => prev.slice(0, -1));
-      setLastMoveToSquareId(null);
+      const newHistory = moveHistory.slice(0, -movesToUndo);
+      setMoveHistory(newHistory);
+
+      // 前の手の移動先をlastMoveに設定（履歴が空なら null）
+      if (newHistory.length > 0) {
+        const prevMove = newHistory[newHistory.length - 1];
+        setLastMoveToSquareId(`${prevMove.toX}${prevMove.toY}`);
+      } else {
+        setLastMoveToSquareId(null);
+      }
+
       setSelectedSquareId(null);
       setSelectedHandPieceId(null);
       setAvailableMoves(new Set());
       setVersion(v => v + 1);
+
+      // AI対局モードの場合、バックエンドにもundo送信
+      if (useAI && wsRef.current?.readyState === WebSocket.OPEN) {
+        const undoMessage = { type: 'undo', count: movesToUndo };
+        wsRef.current.send(JSON.stringify(undoMessage));
+        console.log('Sent undo to backend:', undoMessage);
+      }
     } catch (e) {
       console.error("Undo error:", e);
     }
-  }, [moveHistory, winner, useAI]);
+  }, [moveHistory, winner, isAnimating, isAIThinking, useAI]);
 
-  const canUndo = !useAI && moveHistory.length > 0 && winner === null && !isAnimating;
+  // AI対局モードでは2手以上必要、それ以外は1手以上
+  const minMovesForUndo = useAI ? 2 : 1;
+  const canUndo = moveHistory.length >= minMovesForUndo && winner === null && !isAnimating && !isAIThinking;
 
   // =====================================
   // アニメーション完了ハンドラ
