@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion, type Variants } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
 
 // --- データの定義 ---
 const timelineData = [
@@ -95,8 +96,38 @@ const fadeUp: Variants = {
 };
 
 export default function HistoryPage() {
+  // --- BGM再生ロジック開始 ---
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [volume, setVolume] = useState(0.3);
+
+  useEffect(() => {
+    // 1. 保存された音量を取得
+    const savedVolume = localStorage.getItem('shogi_bgm_volume');
+    const initialVol = savedVolume ? Number(savedVolume) / 100 : 0.3;
+    setVolume(initialVol);
+
+    // 2. 再生開始試行
+    if (audioRef.current) {
+      audioRef.current.volume = initialVol;
+      audioRef.current.play().catch((e) => {
+        // 自動再生ポリシーなどでブロックされた場合はログに出す
+        console.log("BGM play prevented:", e);
+      });
+    }
+  }, []);
+  // --- BGM再生ロジック終了 ---
+
   return (
     <div className="min-h-screen bg-slate-900 text-stone-200 font-serif selection:bg-amber-900 selection:text-white">
+      
+      {/* 🎵 BGM用のaudio要素を追加 */}
+      <audio 
+        ref={audioRef} 
+        src="/sounds/野山.mp3" 
+        loop 
+        preload="auto"
+      />
+
       {/* 背景装飾（和風の霞のようなグラデーション） */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[50vh] bg-gradient-to-b from-indigo-950/80 to-transparent opacity-60" />
@@ -108,7 +139,7 @@ export default function HistoryPage() {
         {/* === 1. ヘッダー＆導入セクション === */}
         <motion.section 
           initial="hidden"
-          whileInView="visible"
+          animate="visible" //「藤井君とは」と最初の説明をページを開いた時に表示させるために変更
           viewport={{ once: true }}
           variants={fadeUp}
           className="text-center space-y-12"
