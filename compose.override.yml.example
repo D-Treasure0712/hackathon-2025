@@ -1,0 +1,15 @@
+# ローカル開発用のオーバーライド設定
+# このファイルは .gitignore に追加されており、各環境で個別に設定してください
+#
+# ★ このファイルを compose.override.yml にコピーして使用してください ★
+#    cp compose.override.yml.example compose.override.yml
+#
+# 使用方法:
+#   - ローカル開発 (Apple Silicon Mac): TARGET_CPU: SSE42
+#   - 本番サーバー (Intel CPU): TARGET_CPU: AVX2
+
+services:
+  backend:
+    build:
+      args:
+        TARGET_CPU: SSE42
